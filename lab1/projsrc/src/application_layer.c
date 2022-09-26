@@ -1,6 +1,7 @@
 // Application layer protocol implementation
 
 #include "application_layer.h"
+#include "link_layer.h"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -18,15 +19,20 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
     LinkLayer layer;
-    layer.serialPort = serialPort;
-    layer.baudrate = baudRate;
+    for (int i = 0; i < 50; i++)
+        layer.serialPort[i] = serialPort+(8*i);
+    layer.baudRate = baudRate;
     layer.nRetransmissions = nTries;
     layer.timeout = timeout;
     if (role == "tx") {
-        layer.LinkLayerRole = llTx;
+        layer.role = LlTx;
     } 
     else {
-        layer.LinkLayerRole = llRx;
+        layer.role = LlRx;
     }
-    return llopen(layer);
+    llopen(layer);
+
+    //write if transmissor
+    //receive if receptor
+
 }
