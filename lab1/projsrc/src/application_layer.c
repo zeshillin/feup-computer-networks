@@ -20,7 +20,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 {
     LinkLayer layer;
     for (int i = 0; i < 50; i++)
-        layer.serialPort[i] = serialPort+(8*i);
+        layer.serialPort[i] = *serialPort+(8*i);
     layer.baudRate = baudRate;
     layer.nRetransmissions = nTries;
     layer.timeout = timeout;

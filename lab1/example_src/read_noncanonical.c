@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 
     while (STOP == FALSE)
     {
-        // Returns after 5 chars have been input
+        // Returns after 1 chars have been input
         int bytes = read(fd, buf, BUF_SIZE);
         buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
 

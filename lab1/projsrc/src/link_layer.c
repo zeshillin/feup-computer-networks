@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "link_layer.h"
 #include "utils.c"
@@ -18,6 +19,34 @@
 struct termios oldtio;
 struct termios newtio;
 int fd;
+
+// Alarm MISC
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+// Alarm function handler
+void alarmHandler(int signal)
+{
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    printf("Alarm #%d\n", alarmCount);
+}
+
+// Set alarm function handler, to be used while receiving data
+int alarmWrapper() {
+    (void)signal(SIGALRM, alarmHandler);
+
+    while (alarmCount < 4)
+    {
+        if (alarmEnabled == FALSE)
+        {
+            alarm(3); // Set alarm to be triggered in 3s
+            alarmEnabled = TRUE;
+        }
+    }
+}
+
 
 ////////////////////////////////////////////////
 // LLOPEN
