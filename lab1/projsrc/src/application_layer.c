@@ -17,7 +17,16 @@ volatile int STOP = FALSE;
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
+    LinkLayer layer;
+    layer.serialPort = serialPort;
+    layer.baudrate = baudRate;
+    layer.nRetransmissions = nTries;
+    layer.timeout = timeout;
     if (role == "tx") {
-        //llopen()
+        layer.LinkLayerRole = llTx;
+    } 
+    else {
+        layer.LinkLayerRole = llRx;
     }
+    return llopen(layer);
 }
