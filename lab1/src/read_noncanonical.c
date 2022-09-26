@@ -5,12 +5,12 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
-#include "write_noncanonical.c"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -23,6 +23,20 @@
 #define BUF_SIZE 256
 
 volatile int STOP = FALSE;
+
+// Alarm for data transmission 
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+// Alarm function handler
+void alarmHandler(int signal)
+{
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    printf("Alarm #%d\n", alarmCount);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -94,8 +108,21 @@ int main(int argc, char *argv[])
 
     while (STOP == FALSE)
     {
-        // Returns after 5 chars have been input
+        // Returns after 1 char have been input
         int bytes = read(fd, buf, BUF_SIZE);
+
+        /*
+        switch (bytes) {
+            case FLAG:
+            
+            case A: 
+
+            case C:
+
+            case BCC:
+
+        }
+        */
         buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
 
         printf(":%s\n", buf);
