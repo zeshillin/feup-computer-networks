@@ -20,6 +20,19 @@ struct termios oldtio;
 struct termios newtio;
 int fd;
 
+//Frame MISC
+bool flagged = false;
+bool address = false;
+bool control = false;
+bool protect = false;
+
+void setFrameFalse() {
+    bool flagged = false;
+    bool address = false;
+    bool control = false;
+    bool protect = false;
+}
+
 // Alarm MISC
 int alarmEnabled = FALSE;
 int alarmCount = 0;
@@ -94,6 +107,115 @@ int llopen(LinkLayer connectionParameters)
     //   TCIFLUSH - flushes data received but not read.
     tcflush(fd, TCIOFLUSH);
 
+    unsigned char buf[BUF_SIZE + 1] = {0}
+
+    (if connectionParameters.role == LlRx) {
+        alarmWrapper();
+        unsigned char bcc1;
+        bool flagged = false;
+        bool address = false;
+        bool control = false;
+        bool protect = false;
+        while ((STOP == FALSE) && (alarmCount < 4))  
+        {  
+            // Returns after 1 chars have been input
+            int bytes = read(fd, buf, BUF_SIZE);
+            switch (bytes) {            
+                case FLAG:
+                    if ((flagged) && (address) && (control) && protect) {
+                        STOP == true;
+                        //send ACK or NACK
+                        break;
+                    }  
+                    else {
+                       setFrameFalse();
+                       flagged = true; 
+                    }
+                    break;
+                case ADD_TX_AND_BACK:
+                    if ((address) || (control) || (protect)) {
+                        setFrameFalse();
+                    }
+                    else if (flagged) {
+                        address = true;
+                    }
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+                case CTRL_SET:
+                    if (control || protect) {
+                         setFrameFalse();
+                        }
+                        else if ((flagged) && (address)) {
+                            control = true;
+                        }
+                        else {
+                            setFrameFalse();
+                        }
+                    break;
+                case CTRL_DC:
+                    if (control || protect) {
+                     setFrameFalse();  
+                    }
+                    else if ((flagged) && (address)) {
+                        control = true;
+                        STOP == true;
+                    }
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+                case CTRL_UA:
+                    if (control || protect) {
+                        setFrameFalse();
+                    }
+                    else if ((flagged) && (address))
+                        control = true;
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+                case CTRL_RR:
+                    if (control || protect) {
+                        setFrameFalse();  
+                    }
+                    else if ((flagged) && (address)) {
+                        control = true;
+                        //send positiveACK
+                    }
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+                case CTRL_REJ:
+                    if (control || protect) {
+                        setFrameFalse();
+                    }
+                    else if ((flagged) && (address)) {
+                        control = true;
+                        //send negativeACK
+                    }
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+                default:
+                    if (flagged && control && address && (!protect) {
+                        bcc1 = bytes;
+                        protect = true;
+                        break:
+                    }
+                    else {
+                        setFrameFalse();
+                    }
+                    break;
+            }
+              
+            buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+
+            printf(":%s:%d\n", buf, bytes);
+      }
     // Set new port settings
     if (tcsetattr(fd, TCSANOW, &newtio) == -1)
     {
