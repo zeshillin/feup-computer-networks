@@ -12,30 +12,19 @@
 #include <signal.h>
 
 #include "link_layer.h"
-#include "utils.c"
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 #define BUF_SIZE 256
 
-volatile int STOP = FALSE;
+//volatile int STOP = FALSE;
 
 struct termios oldtio;
 struct termios newtio;
 int fd;
 
 //Frame MISC
-bool flagged = false;
-bool address = false;
-bool control = false;
-bool protect = false;
-
-void setFrameFalse() {
-    bool flagged = false;
-    bool address = false;
-    bool control = false;
-    bool protect = false;
-}
+enum state { START, FLAG_RCV, ADDRESS, CTRL, BCC, END };
 
 // Alarm MISC
 int alarmEnabled = FALSE;
@@ -112,115 +101,6 @@ int llopen(LinkLayer connectionParameters)
     //   TCIFLUSH - flushes data received but not read.
     tcflush(fd, TCIOFLUSH);
 
-    unsigned char buf[BUF_SIZE + 1] = {0};
-
-    if (connectionParameters.role == LlRx) {
-        alarmWrapper();
-        unsigned char bcc1;
-        bool flagged = false;
-        bool address = false;
-        bool control = false;
-        bool protect = false;
-        while ((STOP == FALSE) && (alarmCount < 4))  
-        {  
-            // Returns after 1 chars have been input
-            int bytes = read(fd, buf, BUF_SIZE);
-            switch (bytes) {            
-                case FLAG:
-                    if ((flagged) && (address) && (control) && protect) {
-                        STOP == true;
-                        //send ACK or NACK
-                        break;
-                    }  
-                    else {
-                       setFrameFalse();
-                       flagged = true; 
-                    }
-                    break;
-                case ADD_TX_AND_BACK:
-                    if ((address) || (control) || (protect)) {
-                        setFrameFalse();
-                    }
-                    else if (flagged) {
-                        address = true;
-                    }
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-                case CTRL_SET:
-                    if (control || protect) {
-                         setFrameFalse();
-                        }
-                        else if ((flagged) && (address)) {
-                            control = true;
-                        }
-                        else {
-                            setFrameFalse();
-                        }
-                    break;
-                case CTRL_DC:
-                    if (control || protect) {
-                     setFrameFalse();  
-                    }
-                    else if ((flagged) && (address)) {
-                        control = true;
-                        STOP == true;
-                    }
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-                case CTRL_UA:
-                    if (control || protect) {
-                        setFrameFalse();
-                    }
-                    else if ((flagged) && (address))
-                        control = true;
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-                case CTRL_RR():
-                    if (control || protect) {
-                        setFrameFalse();  
-                    }
-                    else if ((flagged) && (address)) {
-                        control = true;
-                        //send positiveACK
-                    }
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-                case CTRL_REJ():
-                    if (control || protect) {
-                        setFrameFalse();
-                    }
-                    else if ((flagged) && (address)) {
-                        control = true;
-                        //send negativeACK
-                    }
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-                default:
-                    if (flagged && control && address && (!protect)) {
-                        bcc1 = bytes;
-                        protect = true;
-                        break;
-                    }
-                    else {
-                        setFrameFalse();
-                    }
-                    break;
-            }
-              
-            buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
-
-            printf(":%s:%d\n", buf, bytes);
-      }
     // Set new port settings
     if (tcsetattr(fd, TCSANOW, &newtio) == -1)
     {
@@ -228,8 +108,68 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
-    return 1;
+    enum state state = START;
+    bool acknowledged = false;
 
+    unsigned int ctrl, address;
+
+    unsigned char buf[BUF_SIZE + 1] = {0};
+
+    if (connectionParameters.role == LlRx) {
+        //alarmWrapper();
+        unsigned char bcc1;
+
+        while ((state != END) && (alarmCount < 4))  
+        {   
+            // Returns after 1 chars have been input
+            int bytes = read(fd, buf, BUF_SIZE);
+
+            switch (state) {            
+                case START:
+                    if (bytes == FLAG) 
+                        state = FLAG_RCV;
+                    
+                    break;
+                case FLAG_RCV:
+                    if (bytes == ADD_TX_AND_BACK) {
+                        state = ADDRESS;
+                        address = bytes;
+                    }
+                    else if (bytes == FLAG)
+                        state = START;
+                    else state = START;
+
+                    break;
+                case ADDRESS:
+                    if (bytes == FLAG) 
+                        state = FLAG_RCV;
+                    else {
+                        if (bytes == CTRL_UA) 
+                            acknowledged = true;
+                        ctrl = bytes;
+
+                        state = CTRL;
+                    }
+                    break;
+                case CTRL:
+                    if ((address ^ ctrl) != 0) {
+
+                    }
+                    break;
+                default:
+                    
+                    break;
+            }
+              
+            buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+
+            printf(":%s:%d\n", buf, bytes);
+            alarmCount++;
+      }
+
+
+    return 0;
+    }
 }
 
 ////////////////////////////////////////////////
@@ -255,7 +195,8 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
-int llclose(int showStatistics)
+int llclose(int showStatistics) //using as fd
 {
+    close(fd);
     return 0;
 }

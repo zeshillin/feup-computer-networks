@@ -19,8 +19,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
     LinkLayer layer;
-    for (int i = 0; i < 50; i++)
-        layer.serialPort[i] = *serialPort+(8*i);
+    strcpy(layer.serialPort, *serialPort);
     layer.baudRate = baudRate;
     layer.nRetransmissions = nTries;
     layer.timeout = timeout;
