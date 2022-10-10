@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -15,6 +16,9 @@
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
+#define BUF_SIZE 256
+
+volatile int STOP = FALSE;
 
 struct termios oldtio;
 struct termios newtio;
@@ -58,6 +62,7 @@ int alarmWrapper() {
             alarmEnabled = TRUE;
         }
     }
+    return 0;
 }
 
 
@@ -107,9 +112,9 @@ int llopen(LinkLayer connectionParameters)
     //   TCIFLUSH - flushes data received but not read.
     tcflush(fd, TCIOFLUSH);
 
-    unsigned char buf[BUF_SIZE + 1] = {0}
+    unsigned char buf[BUF_SIZE + 1] = {0};
 
-    (if connectionParameters.role == LlRx) {
+    if (connectionParameters.role == LlRx) {
         alarmWrapper();
         unsigned char bcc1;
         bool flagged = false;
@@ -176,7 +181,7 @@ int llopen(LinkLayer connectionParameters)
                         setFrameFalse();
                     }
                     break;
-                case CTRL_RR:
+                case CTRL_RR():
                     if (control || protect) {
                         setFrameFalse();  
                     }
@@ -188,7 +193,7 @@ int llopen(LinkLayer connectionParameters)
                         setFrameFalse();
                     }
                     break;
-                case CTRL_REJ:
+                case CTRL_REJ():
                     if (control || protect) {
                         setFrameFalse();
                     }
@@ -201,10 +206,10 @@ int llopen(LinkLayer connectionParameters)
                     }
                     break;
                 default:
-                    if (flagged && control && address && (!protect) {
+                    if (flagged && control && address && (!protect)) {
                         bcc1 = bytes;
                         protect = true;
-                        break:
+                        break;
                     }
                     else {
                         setFrameFalse();
