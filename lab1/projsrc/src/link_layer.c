@@ -16,6 +16,8 @@
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 #define BUF_SIZE 256
+#define Rx = 0
+#define Tx = 1
 
 //volatile int STOP = FALSE;
 
@@ -54,15 +56,89 @@ int alarmWrapper() {
     return 0;
 }
 
+int receiveFrame(int fd, LinkLayerRole role) {
+    enum state state = START;
+
+    unsigned int ctrl, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
+
+    unsigned char buf;
+    int bytes;
+
+    while (state != END)  
+    {   
+        if ((bytes = read(fd, &buf, 1)) != 0)
+            return -1;
+
+        switch (state) {            
+            case START:
+                if (buf == FLAG) 
+                    state = FLAG_RCV;
+                
+                break;
+            case FLAG_RCV:
+                if (buf == address) {
+                    state = ADDRESS;
+                    address = bytes;
+                }
+                else if (buf == FLAG)
+                    state = START;
+                else state = START;
+
+                break;
+            case ADDRESS:
+                if (buf == FLAG) 
+                    state = FLAG_RCV;
+                else {
+                    state = CTRL;
+                    ctrl = buf;
+                }
+                break;
+            case CTRL:
+                if (buf == (address ^ ctrl)) 
+                    state = BCC;
+                else if (buf == FLAG)
+                    state = FLAG_RCV;
+                else if (buf == address) {
+                    state = ADDRESS;
+                }
+
+                break;
+            case BCC:
+                if (bytes == FLAG)
+                    state = END;        
+                break;
+            default:
+                
+                break;
+        }
+            
+    }
+
+    return ctrl;
+}
+
+
+int sendFrame(int fd, LinkLayerRole role, int msg) {
+    unsigned int frame[5];
+
+    frame[0] = FLAG;
+    frame[1] = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
+    frame[2] = msg;
+    frame[3] = frame[1] ^ frame[2];
+    frame[4] = FLAG;
+
+    return write(fd, frame, 5);
+}
 
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {
+    printf("started llopen");
+    
     // Program usage: Uses either COM1 or COM2
     const char *serialPortName = connectionParameters.serialPort;
-
     // Open serial port device for writing and not as controlling tty
     // because we don't want to get killed if linenoise sends CTRL-C.
     fd = open(serialPortName, O_RDWR | O_NOCTTY);
@@ -89,7 +165,7 @@ int llopen(LinkLayer connectionParameters)
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 1;  // Blocking read until 5 chars received
+    newtio.c_cc[VMIN] = 1;  // Blocking read until 1 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -108,68 +184,38 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
-    enum state state = START;
-    bool acknowledged = false;
-
-    unsigned int ctrl, address;
-
-    unsigned char buf[BUF_SIZE + 1] = {0};
-
+    //if we're receiving
     if (connectionParameters.role == LlRx) {
-        //alarmWrapper();
-        unsigned char bcc1;
+        printf("llrx if");
+        //wait for frame to arrive
+        while (receiveFrame(fd, connectionParameters.role) != CTRL_SET) {
+            printf("trying");
+            continue;
+        }
+        sendFrame(fd, connectionParameters.role, CTRL_UA);
+    }
 
-        while ((state != END) && (alarmCount < 4))  
-        {   
-            // Returns after 1 chars have been input
-            int bytes = read(fd, buf, BUF_SIZE);
+    //if we're transmitting
+    else {
+        int nTries = 0;
+        
+        //try to send frame 3 times before timing out (4 seconds)
+        //if frame is received, leave function with 0 status
+        alarmWrapper();
+        while (nTries < connectionParameters.nRetransmissions) {
+            sendFrame(fd, connectionParameters.role, CTRL_SET);
 
-            switch (state) {            
-                case START:
-                    if (bytes == FLAG) 
-                        state = FLAG_RCV;
-                    
-                    break;
-                case FLAG_RCV:
-                    if (bytes == ADD_TX_AND_BACK) {
-                        state = ADDRESS;
-                        address = bytes;
-                    }
-                    else if (bytes == FLAG)
-                        state = START;
-                    else state = START;
-
-                    break;
-                case ADDRESS:
-                    if (bytes == FLAG) 
-                        state = FLAG_RCV;
-                    else {
-                        if (bytes == CTRL_UA) 
-                            acknowledged = true;
-                        ctrl = bytes;
-
-                        state = CTRL;
-                    }
-                    break;
-                case CTRL:
-                    if ((address ^ ctrl) != 0) {
-
-                    }
-                    break;
-                default:
-                    
-                    break;
+            if (receiveFrame(fd, connectionParameters.role) == CTRL_UA) {
+                printf("connection estabilished with llopen()");
+                return 1;
             }
-              
-            buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+            else nTries++;
+        }
 
-            printf(":%s:%d\n", buf, bytes);
-            alarmCount++;
-      }
-
+        return -1; 
+    }
 
     return 0;
-    }
 }
 
 ////////////////////////////////////////////////
