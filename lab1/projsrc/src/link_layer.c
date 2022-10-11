@@ -58,7 +58,6 @@ int alarmWrapper() {
 
 u_int8_t receiveFrame(int fd, LinkLayerRole role) {
     state state = START;
-    printf("tried to receive frame with func");
     u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
     u_int8_t buf;
@@ -67,18 +66,27 @@ u_int8_t receiveFrame(int fd, LinkLayerRole role) {
     while (state != END)  
     {   
         bytes = read(fd, &buf, 1);
-        if (bytes == -1) return -1;
-        else if (bytes == 0) return 0;
+        if (bytes == -1) {
+
+            printf("receive ended with -1");
+            return -1;
+        }
+        else if (bytes == 0) { 
+            
+            printf("receive ended with 0");
+            return 0;
+        }
 
         switch (state) {            
             case START:
+                printf("start received");
                 if (buf == FLAG) 
                     state = FLAG_RCV;
                 break;
             case FLAG_RCV:
+                printf("flag rcv");
                 if (buf == address) {
                     state = ADDRESS;
-                    printf("address rcv");
 
                 }
                 else if (buf == FLAG)
@@ -86,6 +94,7 @@ u_int8_t receiveFrame(int fd, LinkLayerRole role) {
                 else state = START;
                 break;
             case ADDRESS:
+                printf("address received");
                 if (buf == FLAG) 
                     state = FLAG_RCV;
                 else {
@@ -202,7 +211,6 @@ int llopen(LinkLayer connectionParameters)
         while (nTries < connectionParameters.nRetransmissions) {
             printf("sending frame");
             
-            alarmWrapper();
             while (alarmCount < connectionParameters.timeout) {
                 sendFrame(fd, LlTx, CTRL_SET);
                 printf("sent frame");
@@ -211,6 +219,7 @@ int llopen(LinkLayer connectionParameters)
                     return 1;
                     break;
                 }
+                sleep(3);
              }
              nTries++;
         }
