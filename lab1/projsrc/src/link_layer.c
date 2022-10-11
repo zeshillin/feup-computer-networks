@@ -26,7 +26,7 @@ struct termios newtio;
 int fd;
 
 //Frame MISC
-enum state { START, FLAG_RCV, ADDRESS, CTRL, BCC, END };
+typedef enum { START, FLAG_RCV, ADDRESS, CTRL, BCC, END } state;
 
 // Alarm MISC
 int alarmEnabled = FALSE;
@@ -56,34 +56,34 @@ int alarmWrapper() {
     return 0;
 }
 
-int receiveFrame(int fd, LinkLayerRole role) {
-    enum state state = START;
+u_int8_t receiveFrame(int fd, LinkLayerRole role) {
+    state state = START;
+    printf("tried to receive frame with func");
+    u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
-    unsigned int ctrl, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
-
-    unsigned char buf;
+    u_int8_t buf;
     int bytes;
 
     while (state != END)  
     {   
-        if ((bytes = read(fd, &buf, 1)) != 0)
-            return -1;
+        bytes = read(fd, &buf, 1);
+        if (bytes == -1) return -1;
+        else if (bytes == 0) return 0;
 
         switch (state) {            
             case START:
                 if (buf == FLAG) 
                     state = FLAG_RCV;
-                
                 break;
             case FLAG_RCV:
                 if (buf == address) {
                     state = ADDRESS;
-                    address = bytes;
+                    printf("address rcv");
+
                 }
                 else if (buf == FLAG)
-                    state = START;
+                    state = FLAG_RCV;
                 else state = START;
-
                 break;
             case ADDRESS:
                 if (buf == FLAG) 
@@ -98,14 +98,16 @@ int receiveFrame(int fd, LinkLayerRole role) {
                     state = BCC;
                 else if (buf == FLAG)
                     state = FLAG_RCV;
-                else if (buf == address) {
-                    state = ADDRESS;
+                else {
+                    state = START;
                 }
 
                 break;
             case BCC:
-                if (bytes == FLAG)
-                    state = END;        
+                printf("bcc received");
+                if (buf == FLAG)
+                    state = END; 
+                else state = START;    
                 break;
             default:
                 
@@ -119,7 +121,8 @@ int receiveFrame(int fd, LinkLayerRole role) {
 
 
 int sendFrame(int fd, LinkLayerRole role, int msg) {
-    unsigned int frame[5];
+    u_int8_t frame[5];
+    printf("tried to send frame with func");
 
     frame[0] = FLAG;
     frame[1] = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
@@ -136,7 +139,7 @@ int sendFrame(int fd, LinkLayerRole role, int msg) {
 int llopen(LinkLayer connectionParameters)
 {
     printf("started llopen");
-    
+
     // Program usage: Uses either COM1 or COM2
     const char *serialPortName = connectionParameters.serialPort;
     // Open serial port device for writing and not as controlling tty
@@ -164,7 +167,7 @@ int llopen(LinkLayer connectionParameters)
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
+    newtio.c_cc[VTIME] = connectionParameters.timeout; // Inter-character timer unused
     newtio.c_cc[VMIN] = 1;  // Blocking read until 1 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
@@ -188,31 +191,32 @@ int llopen(LinkLayer connectionParameters)
     if (connectionParameters.role == LlRx) {
         printf("llrx if");
         //wait for frame to arrive
-        while (receiveFrame(fd, connectionParameters.role) != CTRL_SET) {
-            printf("trying");
-            continue;
-        }
-        sendFrame(fd, connectionParameters.role, CTRL_UA);
+        while (receiveFrame(fd, LlTx) != CTRL_SET) { }
+        sendFrame(fd, LlTx, CTRL_UA);
     }
 
     //if we're transmitting
     else {
         int nTries = 0;
-        
-        //try to send frame 3 times before timing out (4 seconds)
-        //if frame is received, leave function with 0 status
-        alarmWrapper();
+
         while (nTries < connectionParameters.nRetransmissions) {
-            sendFrame(fd, connectionParameters.role, CTRL_SET);
-
-            if (receiveFrame(fd, connectionParameters.role) == CTRL_UA) {
-                printf("connection estabilished with llopen()");
-                return 1;
-            }
-            else nTries++;
+            printf("sending frame");
+            
+            alarmWrapper();
+            while (alarmCount < connectionParameters.timeout) {
+                sendFrame(fd, LlTx, CTRL_SET);
+                printf("sent frame");
+                if (receiveFrame(fd, LlTx) == CTRL_UA) {
+                    printf("received frame");
+                    return 1;
+                    break;
+                }
+             }
+             nTries++;
         }
+        if (nTries == connectionParameters.nRetransmissions)
+            return -2;
 
-        return -1; 
     }
 
     return 0;
@@ -243,6 +247,7 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics) //using as fd
 {
+    tcsetattr(fd, TCSANOW, &oldtio);
     close(fd);
     return 0;
 }

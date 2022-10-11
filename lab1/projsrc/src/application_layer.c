@@ -36,10 +36,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("role estabilished: rx");
         layer.role = LlRx;
     }
-    if (llopen(layer) == 1)
+    int res = llopen(layer);
+    if (res == 1)
         printf("llopen working!");
-    else
-        printf("llopen did not work");
+    else if (res == -2)
+        printf("too many tries");
+    else 
+        printf("llopen ended with 0");
+    
+    llclose(TRUE);
 
 
 }
