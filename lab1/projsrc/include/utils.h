@@ -20,6 +20,7 @@
 #define ESC_SUB 0x5D
 
 void stuffFrame(dArray *a);
+void destuffFrame(dArray *a);
 
 #endif // _UTILS_H_
 

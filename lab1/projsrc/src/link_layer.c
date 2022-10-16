@@ -24,6 +24,7 @@
 struct termios oldtio;
 struct termios newtio;
 int fd;
+int cur_seqNum;
 
 //Frame MISC
 typedef enum { START, FLAG_RCV, ADDRESS, CTRL, BCC, END } state;
@@ -146,14 +147,12 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     state state = START;
     u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
 
-    u_int8_t buf;
     int bytes;
 
     return bytes;
     
 }
-
-int sendIFrame(int fd, unsigned char *buf, int length, int seqNum) {
+int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     //setting up frame components
     u_int8_t address = ADD_TX_AND_BACK;
@@ -164,14 +163,13 @@ int sendIFrame(int fd, unsigned char *buf, int length, int seqNum) {
     //concocting the frame 
     //dynamic array to store frame for resizing purposes (stuffing)
     dArray frame;
-    initArray(&frame, 7);
+    initArray(&frame, 6);
     insertArray(&frame, FLAG);
     insertArray(&frame, ADD_TX_AND_BACK);
-    u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
     insertArray(&frame, ctrl);
     insertArray(&frame, bcc1);
 
-    for (int i = 0; i < length; i++) 
+    for (int i = 1; i < length; i++) 
         bcc2 = (bcc2 ^ buf[i]);
     
     insertArray(&frame, bcc2);
@@ -245,13 +243,14 @@ int llopen(LinkLayer connectionParameters)
     if (connectionParameters.role == LlRx) {
         printf("llrx if");
         //wait for frame to arrive
-        while (receiveFrame(fd, LlTx) != CTRL_SET) { }
+        while (readSUFrame(fd, LlTx) != CTRL_SET) { }
         sendSUFrame(fd, LlTx, CTRL_UA);
     }
 
     //if we're transmitting
     else {
         int nTries = 0;
+        alarmCount = 0;
 
         while (nTries < connectionParameters.nRetransmissions) {
             printf("sending frame");
@@ -259,19 +258,17 @@ int llopen(LinkLayer connectionParameters)
             while (alarmCount < connectionParameters.timeout) {
                 sendSUFrame(fd, LlTx, CTRL_SET);
                 printf("sent frame");
-                if (receiveFrame(fd, LlTx) == CTRL_UA) {
+                if (readSUFrame(fd, LlTx) == CTRL_UA) {
                     printf("received frame");
                     return 1;
-                    break;
                 }
                 sleep(3);
                 alarmCount++;
              }
              nTries++;
         }
-        if (nTries == connectionParameters.nRetransmissions)
-            return -2;
-
+        printf("llopen too many tries");
+        return -2;
     }
 
     return 0;
@@ -280,9 +277,34 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(const unsigned char *buf, int bufSize)
+//wrap this funciton around an --while (llwrite == -1) 
+int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSize)
 {
+    int nTries = 0;
+    int nRetransmissions = 0;
+    alarmCount = 0;
+    int seqNum = connectionParameters.serialPort[strlen(connectionParameters.serialPort) - 1];
     
+    u_int8_t response; 
+
+    while (nTries < connectionParameters.nRetransmissions) {
+        sendIFrame(fd, buf, bufSize, seqNum);
+        printf("sending iframe");
+        while (alarmCount < connectionParameters.timeout) {
+                if ((response = readSUFrame(fd, connectionParameters.role)) == CTRL_RR(seqNum)) {
+                    seqNum = seqNum ? 0 : 1;
+                    return 1;
+                }
+                else if ((response) = CTRL_REJ(seqNum))
+                    return -1;
+
+                sleep(3);
+                alarmCount++;
+        }
+        nTries++;
+    }
+
+    printf("llwrite too many tries");
     return 0;
 }
 

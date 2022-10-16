@@ -18,6 +18,7 @@ u_int8_t getArrayValue(dArray *a, int index);
 void initArray(dArray *a, size_t initialSize);
 void insertArray(dArray *a, u_int8_t element);
 void escapeByte(dArray *a, int index, u_int8_t byte);
+void descapeByte(dArray *a, int index);
 void freeArray(dArray *a);
 
 #endif // _DYNAMIC_ARRAY__H_

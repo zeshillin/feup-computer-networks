@@ -3,7 +3,8 @@
 void stuffFrame(dArray *a) { 
     u_int8_t byte;
 
-    for(int i = 0; i < a->size; i++)
+    //skip over first byte which is a flag
+    for(int i = 1; i < a->size; i++)
     {
         byte = getArrayValue(&a, i);
 

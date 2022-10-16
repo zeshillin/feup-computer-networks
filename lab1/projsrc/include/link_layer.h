@@ -34,7 +34,7 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role);
 int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg);
 
 u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum);
-int sendIFrame(int fd, unsigned char *buf, int length, int seqNum);
+int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum);
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.
@@ -42,7 +42,7 @@ int llopen(LinkLayer connectionParameters);
 
 // Send data in buf with size bufSize.
 // Return number of chars written, or "-1" on error.
-int llwrite(const unsigned char *buf, int bufSize);
+int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSize);
 
 // Receive data in packet.
 // Return number of chars read, or "-1" on error.

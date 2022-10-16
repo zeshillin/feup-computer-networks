@@ -1,6 +1,5 @@
 #include "dynamic_array.h"
 
-
 size_t getSize(dArray *a) {
     return a->size;
 }
