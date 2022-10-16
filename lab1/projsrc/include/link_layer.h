@@ -5,6 +5,7 @@
 #define _LINK_LAYER_H_
 
 #include "utils.h"
+#include "dynamic_array.h"
 
 typedef enum
 {
@@ -28,6 +29,12 @@ typedef struct
 // MISC
 #define FALSE 0
 #define TRUE 1
+
+u_int8_t readSUFrame(int fd, LinkLayerRole role);
+int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg);
+
+u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum);
+int sendIFrame(int fd, unsigned char *buf, int length, int seqNum);
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.

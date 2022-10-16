@@ -56,7 +56,7 @@ int alarmWrapper() {
     return 0;
 }
 
-u_int8_t receiveFrame(int fd, LinkLayerRole role) {
+u_int8_t readSUFrame(int fd, LinkLayerRole role) {
     state state = START;
     u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
@@ -107,9 +107,8 @@ u_int8_t receiveFrame(int fd, LinkLayerRole role) {
                     state = BCC;
                 else if (buf == FLAG)
                     state = FLAG_RCV;
-                else {
+                else 
                     state = START;
-                }
 
                 break;
             case BCC:
@@ -127,19 +126,65 @@ u_int8_t receiveFrame(int fd, LinkLayerRole role) {
 
     return ctrl;
 }
+int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
 
-
-int sendFrame(int fd, LinkLayerRole role, int msg) {
     u_int8_t frame[5];
+    u_int8_t address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
+    u_int8_t bcc = address ^ msg;
     printf("tried to send frame with func");
 
     frame[0] = FLAG;
-    frame[1] = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
+    frame[1] = address;
     frame[2] = msg;
-    frame[3] = frame[1] ^ frame[2];
+    frame[3] = bcc;
     frame[4] = FLAG;
 
     return write(fd, frame, 5);
+}
+
+u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
+    state state = START;
+    u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
+
+    u_int8_t buf;
+    int bytes;
+
+    return bytes;
+    
+}
+
+int sendIFrame(int fd, unsigned char *buf, int length, int seqNum) {
+
+    //setting up frame components
+    u_int8_t address = ADD_TX_AND_BACK;
+    u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
+    u_int8_t bcc1 = ADD_TX_AND_BACK ^ ctrl;
+    u_int8_t bcc2 = buf[0];
+
+    //concocting the frame 
+    //dynamic array to store frame for resizing purposes (stuffing)
+    dArray frame;
+    initArray(&frame, 7);
+    insertArray(&frame, FLAG);
+    insertArray(&frame, ADD_TX_AND_BACK);
+    u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
+    insertArray(&frame, ctrl);
+    insertArray(&frame, bcc1);
+
+    for (int i = 0; i < length; i++) 
+        bcc2 = (bcc2 ^ buf[i]);
+    
+    insertArray(&frame, bcc2);
+
+    stuffFrame(&frame);
+
+    insertArray(&frame, FLAG);
+
+    int ret = write(fd, frame.array, frame.size);
+
+    freeArray(&frame);
+
+    return ret;
 }
 
 ////////////////////////////////////////////////
@@ -201,7 +246,7 @@ int llopen(LinkLayer connectionParameters)
         printf("llrx if");
         //wait for frame to arrive
         while (receiveFrame(fd, LlTx) != CTRL_SET) { }
-        sendFrame(fd, LlTx, CTRL_UA);
+        sendSUFrame(fd, LlTx, CTRL_UA);
     }
 
     //if we're transmitting
@@ -212,7 +257,7 @@ int llopen(LinkLayer connectionParameters)
             printf("sending frame");
             
             while (alarmCount < connectionParameters.timeout) {
-                sendFrame(fd, LlTx, CTRL_SET);
+                sendSUFrame(fd, LlTx, CTRL_SET);
                 printf("sent frame");
                 if (receiveFrame(fd, LlTx) == CTRL_UA) {
                     printf("received frame");
@@ -220,6 +265,7 @@ int llopen(LinkLayer connectionParameters)
                     break;
                 }
                 sleep(3);
+                alarmCount++;
              }
              nTries++;
         }
@@ -236,8 +282,7 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    // TODO
-
+    
     return 0;
 }
 
