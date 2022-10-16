@@ -19,7 +19,7 @@
 #define ESC 0x7D
 #define ESC_SUB 0x5D
 
-int stuffFrame(dArray *a);
+void stuffFrame(dArray *a);
 
 #endif // _UTILS_H_
 

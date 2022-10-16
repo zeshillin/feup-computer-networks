@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "utils.h"
+
  typedef struct {
   u_int8_t *array;
   size_t used;

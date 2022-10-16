@@ -1,5 +1,6 @@
 #include "dynamic_array.h"
 
+
 size_t getSize(dArray *a) {
     return a->size;
 }
@@ -26,14 +27,26 @@ void insertArray(dArray *a, u_int8_t element) {
 
 void escapeByte(dArray *a, int index, u_int8_t byte) {
 
-  a->size *= 2; //might trade for 3/2
+  a->size++;
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
-  
+  a->used++;
+
   for (int i = index + 1; i < a->size - 1; i++)
     a->array[i+1] = a->array[i];
 
-  a->array[index] = byte;
+  a->array[index] = ESC;
+  a->array[index+1] = byte^0x20;
 
+}
+
+void descapeByte(dArray *a, int index)
+{
+  for (int i = index; i < a->size; i++) 
+    a->array[i] = a->array[i+1];
+  
+  a->size--;
+  a->array = realloc(a->array, a->size * sizeof(u_int8_t));
+  a->used--;
 }
 
 void freeArray(dArray *a) {
