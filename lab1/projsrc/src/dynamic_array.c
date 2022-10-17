@@ -14,7 +14,7 @@ void initArray(dArray *a, size_t initialSize) {
   a->size = initialSize;
 }
 
-void insertArray(dArray *a, u_int8_t element) {
+void insertArray(dArray *a, const u_int8_t element) {
   // a->used is the number of used entries, because a->array[a->used++] updates a->used only *after* the array has been accessed.
   // Therefore a->used can go up to a->size 
   if (a->used == a->size) {
@@ -74,6 +74,26 @@ void descapeByte(dArray *a, int index)
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used--;
 }
+
+u_int8_t generateBCC2(dArray *a) {
+  u_int8_t bcc; 
+
+  for (int i = 4; i < a->size - 2; i++)
+    bcc ^= a->array[i];
+
+  return bcc;
+}
+
+dArray getData(dArray *a) {
+  dArray data_array;
+  initArray(&data_array, 1);
+
+  for (int i = 4; i < a->size - 2; i++)
+    insertArray(&data_array, a->array[i]);
+  
+  return data_array;
+}
+
 
 void freeArray(dArray *a) {
   free(a->array);

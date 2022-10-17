@@ -27,7 +27,8 @@ int fd;
 int cur_seqNum;
 
 //Frame MISC
-typedef enum { START, FLAG_RCV, ADDRESS, CTRL, BCC, END } state;
+typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC_GOT, END } SU_state;
+typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END, INVALID_HEADER, INVALID_FRAME, INVALID_BCC2 } I_state;
 
 // Alarm MISC
 int alarmEnabled = FALSE;
@@ -58,15 +59,15 @@ int alarmWrapper() {
 }
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
-    state state = START;
+    SU_state state = START;
     u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
-    u_int8_t buf;
+    u_int8_t read_buf;
     int bytes;
 
     while (state != END)  
     {   
-        bytes = read(fd, &buf, 1);
+        bytes = read(fd, &read_buf, 1);
         if (bytes == -1) {
 
             printf("receive ended with -1");
@@ -74,47 +75,46 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
         }
         else if (bytes == 0) { 
             
-            printf("receive ended with 0");
+            printf("receive ended with 0 (no bytes read)");
             return 0;
         }
 
         switch (state) {            
             case START:
                 printf("start received");
-                if (buf == FLAG) 
-                    state = FLAG_RCV;
+                if (read_buf == FLAG) 
+                    state = FLAG_GOT;
                 break;
-            case FLAG_RCV:
+            case FLAG_GOT:
                 printf("flag rcv");
-                if (buf == address) {
-                    state = ADDRESS;
-
+                if (read_buf == address) {
+                    state = ADDRESS_GOT;
                 }
-                else if (buf == FLAG)
-                    state = FLAG_RCV;
+                else if (read_buf == FLAG)
+                    state = FLAG_GOT;
                 else state = START;
                 break;
-            case ADDRESS:
+            case ADDRESS_GOT:
                 printf("address received");
-                if (buf == FLAG) 
-                    state = FLAG_RCV;
+                if (read_buf == FLAG) 
+                    state = FLAG_GOT;
                 else {
-                    state = CTRL;
-                    ctrl = buf;
+                    state = CTRL_GOT;
+                    ctrl = read_buf;
                 }
                 break;
-            case CTRL:
-                if (buf == (address ^ ctrl)) 
-                    state = BCC;
-                else if (buf == FLAG)
-                    state = FLAG_RCV;
+            case CTRL_GOT:
+                if (read_buf == (address ^ ctrl)) 
+                    state = BCC_GOT;
+                else if (read_buf == FLAG)
+                    state = FLAG_GOT;
                 else 
                     state = START;
 
                 break;
-            case BCC:
+            case BCC_GOT:
                 printf("bcc received");
-                if (buf == FLAG)
+                if (read_buf == FLAG)
                     state = END; 
                 else state = START;    
                 break;
@@ -143,13 +143,136 @@ int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
     return write(fd, frame, 5);
 }
 
+//return -1 if read returned an error, -2 if wrong header, -3 if wrong seqNum, -4 if invalid bcc2
 u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
-    state state = START;
-    u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
+    
+    I_state state = START;
+    dArray frame;
+    initArray(&frame, 6);
 
+    u_int8_t address = ADD_TX_AND_BACK;
+    u_int8_t cur_ctrl = SEQNUM_TO_CONTROL(seqNum);
+    int next_seqNum = cur_seqNum ? 0 : 1;
+    u_int8_t next_ctrl = SEQNUM_TO_CONTROL(next_seqNum);
+
+    u_int8_t read_buf;
     int bytes;
 
-    return bytes;
+    while (state != END) {
+
+        bytes = read(fd, &read_buf, 1);
+        if (bytes == -1) {
+            printf("readIFrame ended with error");
+            return -1;
+        }
+        else if (bytes == 0) { 
+            printf("readIFrame ended with 0 (no bytes read)");
+            freeArray(&frame);
+            return 0;
+        }
+
+        insertArray(&frame, read_buf);
+
+        switch(state) {
+            case START:
+                if (read_buf == FLAG) 
+                    state = FLAG_GOT;
+                break;
+            case FLAG_GOT :
+                if (read_buf == FLAG) 
+                    state = END;
+                break;
+
+            default: 
+                break;
+        }
+    }
+
+    destuffFrame(&frame);
+    u_int8_t bcc2 = generateBCC2(&frame);
+
+    state = START;
+
+    int i = 0;
+
+    while (state != END || state != INVALID_FRAME || state != INVALID_HEADER || i < frame.size) {
+
+        switch (state) {
+            case START:
+                if (frame.array[i] == FLAG)  
+                    state = FLAG_GOT;
+                else {
+                    printf("error reading Iframe (wrong header)");
+                    return -2;
+                }
+                break;
+            case FLAG_GOT:
+                if (frame.array[i] == address)
+                    state = ADDRESS_GOT;
+                else {
+                    printf("error reading Iframe (wrong header)");
+                    return -3;
+                }
+                break;
+            case ADDRESS_GOT:
+                if (frame.array[i] == cur_ctrl) 
+                    state = CTRL_GOT;
+                
+                else if (frame.array[i] == next_ctrl) 
+                    return -2;
+                else {
+                    printf("error reading Iframe (wrong header)");
+                    return -3;
+                }
+                break;
+            case CTRL_GOT:
+                if (frame.array[i] == (address^cur_ctrl)) 
+                    state = BCC1_GOT;
+                else if (frame.array[i]== (address^next_ctrl)) {
+                    printf("error reading Iframe (wrong sequence number)");
+                    return -3;
+                }
+                else {
+                    printf("error reading Iframe (wrong header)");
+                    return -2;
+                }
+                break;
+
+            //data 
+            case BCC1_GOT:
+                if (i == frame.size - 2) {
+                    if (frame.array[i] == bcc2) 
+                        state = BCC2_GOT;
+                    else {
+                        printf("error reading Iframe (invalid BCC2)");
+                        return -4;
+                    }
+                }
+                else {
+                   continue;
+                }
+                break;
+
+            case BCC2_GOT:
+                if (frame.array[i] == FLAG)  
+                    state = END;
+                else {
+                    printf("error reading Iframe (wrong header)");
+                    return -4;
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    dArray data = getData(&frame);
+    freeArray(&frame);
+
+    memcpy(buf, data.array, data.size);
+
+    return 1;
     
 }
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
@@ -164,6 +287,7 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
     //dynamic array to store frame for resizing purposes (stuffing)
     dArray frame;
     initArray(&frame, 6);
+
     insertArray(&frame, FLAG);
     insertArray(&frame, ADD_TX_AND_BACK);
     insertArray(&frame, ctrl);
@@ -171,7 +295,6 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     for (int i = 1; i < length; i++) 
         bcc2 = (bcc2 ^ buf[i]);
-    
     insertArray(&frame, bcc2);
 
     stuffFrame(&frame);
@@ -326,6 +449,7 @@ int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSiz
 int llread(unsigned char *packet)
 {
     //if read successful, change seqNum
+
 
     return 0;
 }
