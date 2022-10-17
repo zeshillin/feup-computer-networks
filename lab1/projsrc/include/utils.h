@@ -1,8 +1,6 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-#include "dynamic_array.h"
-
 // control field flags
 #define FLAG 0x7E
 
@@ -18,9 +16,6 @@
 
 #define ESC 0x7D
 #define ESC_SUB 0x5D
-
-void stuffFrame(dArray *a);
-void destuffFrame(dArray *a);
 
 #endif // _UTILS_H_
 

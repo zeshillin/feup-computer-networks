@@ -254,9 +254,9 @@ int llopen(LinkLayer connectionParameters)
 
         while (nTries < connectionParameters.nRetransmissions) {
             printf("sending frame");
+            sendSUFrame(fd, LlTx, CTRL_SET);
             
             while (alarmCount < connectionParameters.timeout) {
-                sendSUFrame(fd, LlTx, CTRL_SET);
                 printf("sent frame");
                 if (readSUFrame(fd, LlTx) == CTRL_UA) {
                     printf("received frame");
@@ -277,27 +277,39 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-//wrap this funciton around an --while (llwrite == -1) 
 int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSize)
 {
     int nTries = 0;
     int nRetransmissions = 0;
     alarmCount = 0;
-    int seqNum = connectionParameters.serialPort[strlen(connectionParameters.serialPort) - 1];
+    int old_seqNum = cur_seqNum; //connectionParameters.sequenceNumber;
+    int next_seqNum = cur_seqNum ? 0 : 1;
     
     u_int8_t response; 
 
     while (nTries < connectionParameters.nRetransmissions) {
-        sendIFrame(fd, buf, bufSize, seqNum);
         printf("sending iframe");
+        if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
+            printf("problem sending iframe");
+            return -1;
+        }
+
         while (alarmCount < connectionParameters.timeout) {
-                if ((response = readSUFrame(fd, connectionParameters.role)) == CTRL_RR(seqNum)) {
-                    seqNum = seqNum ? 0 : 1;
+                if ((response = readSUFrame(fd, connectionParameters.role)) == CTRL_RR(next_seqNum)) {
                     return 1;
                 }
-                else if ((response) = CTRL_REJ(seqNum))
-                    return -1;
-
+                else if ((response) == CTRL_REJ(old_seqNum)) {
+                    if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
+                        printf("problem sending iframe");
+                        return -1;
+                    }
+                    nTries = 0;
+                    break;
+                }
+                else if ((response == CTRL_RR(old_seqNum)) || (response == CTRL_REJ(old_seqNum))) {
+                    continue;
+                }
+                
                 sleep(3);
                 alarmCount++;
         }
@@ -305,7 +317,7 @@ int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSiz
     }
 
     printf("llwrite too many tries");
-    return 0;
+    return -1;
 }
 
 ////////////////////////////////////////////////
@@ -313,7 +325,7 @@ int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSiz
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
-    // TODO
+    //if read successful, change seqNum
 
     return 0;
 }

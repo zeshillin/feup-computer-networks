@@ -6,7 +6,6 @@
 #include "application_layer.h"
 #include "link_layer.h"
 
-
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
 #define BAUDRATE B38400
@@ -18,6 +17,7 @@
 #define BUF_SIZE 256
 
 extern int fd;
+extern int cur_seqNum;
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
