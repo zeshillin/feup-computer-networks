@@ -195,7 +195,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 
     int i = 0;
 
-    while (state != END || state != INVALID_FRAME || state != INVALID_HEADER || i < frame.size) {
+    while (state != END || i < frame.size) {
 
         switch (state) {
             case START:
@@ -293,8 +293,10 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
     insertArray(&frame, ctrl);
     insertArray(&frame, bcc1);
 
-    for (int i = 1; i < length; i++) 
+    for (int i = 1; i < length; i++) {
+        insertArray(&frame, buf[i]);
         bcc2 = (bcc2 ^ buf[i]);
+    }
     insertArray(&frame, bcc2);
 
     stuffFrame(&frame);
@@ -449,9 +451,31 @@ int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSiz
 int llread(unsigned char *packet)
 {
     //if read successful, change seqNum
+    int msg;
+
+    while ((msg = (readIFrame(fd, packet, cur_seqNum))) != 1) {
+        
+        switch (msg) {
+            case -1:
+                return -1;
+            case -2:
+                sendSUFrame(fd, LlTx, CTRL_REJ(cur_seqNum));
+                break;
+            case -3: 
+                sendSUFrame(fd, LlTx, CTRL_RR(cur_seqNum));
+                break;
+
+            default: 
+                break;
+        }
+    }
 
 
-    return 0;
+    cur_seqNum = cur_seqNum ? 0 : 1;
+    sendSUFrame(fd, LlTx, CTRL_RR(cur_seqNum));
+
+    return msg;
+
 }
 
 ////////////////////////////////////////////////
