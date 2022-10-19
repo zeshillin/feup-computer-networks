@@ -270,9 +270,9 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     dArray data = getData(&frame);
     freeArray(&frame);
 
-    memcpy(buf, data.array, data.size);
+    memcpy(buf, data.array, data.used);
 
-    return 1;
+    return bytes;
     
 }
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
@@ -408,18 +408,19 @@ int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSiz
     int old_seqNum = cur_seqNum; //connectionParameters.sequenceNumber;
     int next_seqNum = cur_seqNum ? 0 : 1;
     
+    int bytes;
     u_int8_t response; 
 
     while (nTries < connectionParameters.nRetransmissions) {
         printf("sending iframe");
-        if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
+        if (!(bytes = sendIFrame(fd, buf, bufSize, old_seqNum))) {
             printf("problem sending iframe");
             return -1;
         }
 
         while (alarmCount < connectionParameters.timeout) {
                 if ((response = readSUFrame(fd, connectionParameters.role)) == CTRL_RR(next_seqNum)) {
-                    return 1;
+                    return bytes;
                 }
                 else if ((response) == CTRL_REJ(old_seqNum)) {
                     if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
@@ -468,7 +469,6 @@ int llread(unsigned char *packet)
         }
     }
 
-
     cur_seqNum = cur_seqNum ? 0 : 1;
     sendSUFrame(fd, LlTx, CTRL_RR(cur_seqNum));
 
@@ -481,6 +481,10 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics) //using as fd
 {
+    alarmCount = 0;
+
+    if (showStatistics)
+
     tcsetattr(fd, TCSANOW, &oldtio);
     close(fd);
     return 0;
