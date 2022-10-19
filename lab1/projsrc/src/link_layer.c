@@ -265,6 +265,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
             default:
                 break;
         }
+        i++;
     }
 
     dArray data = getData(&frame);
