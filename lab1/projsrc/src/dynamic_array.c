@@ -1,5 +1,7 @@
 #include "dynamic_array.h"
 
+#include <stdlib.h>
+
 size_t getSize(dArray *a) {
     return a->size;
 }
@@ -31,10 +33,10 @@ void stuffFrame(dArray *a) {
     //skip over first byte which is a flag
     for(int i = 1; i < a->size; i++)
     {
-        byte = getArrayValue(&a, i);
+        byte = getArrayValue(a, i);
 
         if(byte == FLAG || byte == ESC)
-            escapeByte(&a, i, byte);
+            escapeByte(a, i, byte);
         
     }
 }
@@ -44,10 +46,10 @@ void destuffFrame(dArray *a) {
 
     for (int i = 0; i < a->size; i++)
     {   
-        byte = getArrayValue(&a, i);
+        byte = getArrayValue(a, i);
 
         if (byte == ESC) 
-            descapeByte(&a, i);
+            descapeByte(a, i);
     }
 }
 

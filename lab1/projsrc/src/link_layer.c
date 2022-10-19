@@ -27,8 +27,7 @@ int fd;
 int cur_seqNum;
 
 //Frame MISC
-typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC_GOT, END } SU_state;
-typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END, INVALID_HEADER, INVALID_FRAME, INVALID_BCC2 } I_state;
+typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END, INVALID_HEADER, INVALID_FRAME, INVALID_BCC2 } state;
 
 // Alarm MISC
 int alarmEnabled = FALSE;
@@ -59,7 +58,7 @@ int alarmWrapper() {
 }
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
-    SU_state state = START;
+    state state = START;
     u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
     u_int8_t read_buf;
@@ -105,14 +104,14 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
                 break;
             case CTRL_GOT:
                 if (read_buf == (address ^ ctrl)) 
-                    state = BCC_GOT;
+                    state = BCC1_GOT;
                 else if (read_buf == FLAG)
                     state = FLAG_GOT;
                 else 
                     state = START;
 
                 break;
-            case BCC_GOT:
+            case BCC1_GOT:
                 printf("bcc received");
                 if (read_buf == FLAG)
                     state = END; 
@@ -146,7 +145,7 @@ int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
 //return -1 if read returned an error, -2 if wrong header, -3 if wrong seqNum, -4 if invalid bcc2
 u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     
-    I_state state = START;
+    state state = START;
     dArray frame;
     initArray(&frame, 6);
 
@@ -279,7 +278,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     //setting up frame components
-    u_int8_t address = ADD_TX_AND_BACK;
     u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
     u_int8_t bcc1 = ADD_TX_AND_BACK ^ ctrl;
     u_int8_t bcc2 = buf[0];
@@ -406,7 +404,6 @@ int llopen(LinkLayer connectionParameters)
 int llwrite(LinkLayer connectionParameters, const unsigned char *buf, int bufSize)
 {
     int nTries = 0;
-    int nRetransmissions = 0;
     alarmCount = 0;
     int old_seqNum = cur_seqNum; //connectionParameters.sequenceNumber;
     int next_seqNum = cur_seqNum ? 0 : 1;
