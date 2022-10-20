@@ -479,13 +479,41 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
-int llclose(int showStatistics) //using as fd
+int llclose(LinkLayer connectionParameters, int showStatistics) //using as fd
 {
-    alarmCount = 0;
+    int nTries = 0;
 
-    if (showStatistics)
+    u_int8_t msg;
+
+    if (connectionParameters.role == LlRx) {
+        while (nTries < connectionParameters.timeout)
+            if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
+                sendSUFrame(fd, LlTx, CTRL_DC);
+                break;
+            }
+            sleep(3);
+            alarmCount++;        
+    }
+    else {
+        sendSUFrame(showStatistics, LlTx, CTRL_DC);
+
+        while (nTries < connectionParameters.timeout) {
+            if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
+                sendSUFrame(fd, LlTx, CTRL_UA);
+                break;
+            }
+            sleep(3);
+            alarmCount++;
+        }
+    }
+
+    if (nTries == connectionParameters.timeout) {
+        printf("llclose failed (too many tries)");
+        return -1;
+    }
 
     tcsetattr(fd, TCSANOW, &oldtio);
     close(fd);
-    return 0;
+
+    return 1;
 }
