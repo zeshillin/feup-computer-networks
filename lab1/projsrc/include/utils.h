@@ -1,7 +1,7 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-// control field flags
+// linklayer utils
 #define FLAG 0x7E
 
 #define ADD_TX_AND_BACK 0x03
@@ -16,6 +16,14 @@
 
 #define ESC 0x7D
 #define ESC_SUB 0x5D
+
+// applayer utils
+
+#define CF_START 2
+#define CF_END 3
+
+#define T_FILESIZE 0
+#define T_FILENAME 1
 
 #endif // _UTILS_H_
 

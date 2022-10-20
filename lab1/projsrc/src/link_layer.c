@@ -363,6 +363,8 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
+    cur_seqNum = 0;
+
     //if we're receiving
     if (connectionParameters.role == LlRx) {
         printf("llrx if");
