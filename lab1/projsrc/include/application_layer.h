@@ -16,6 +16,11 @@ typedef struct {
 } fileStruct;
 
 typedef struct {
+    unsigned char* packet;
+    int packet_size;
+} startPacket;
+
+typedef struct {
     u_int8_t T;
     u_int8_t L;
     u_int8_t* V;
@@ -23,7 +28,13 @@ typedef struct {
 
 int readTLV(unsigned char *buf, TLV *tlv);
 int readControlPacket();
-int setFile(const char* fd);
+int sendControlPacket(TLV* tlvs, int tlvNum, u_int8_t cf);
+
+int writeFileContents(FILE *fp);
+int sendFileContents(FILE *fp, u_int8_t size);
+
+int readFile();
+int sendFile(char* path);
 
 // Application layer main function.
 // Arguments:
@@ -33,7 +44,9 @@ int setFile(const char* fd);
 //   nTries: Maximum number of frame retries.
 //   timeout: Frame timeout.
 //   filename: Name of the file to send / receive.
-void applicationLayer(const char *serialPort, const char *role, int baudRate,
+int applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename);
+
+int appLayer_exit();
 
 #endif // _APPLICATION_LAYER_H_

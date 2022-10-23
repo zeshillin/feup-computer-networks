@@ -19,8 +19,11 @@
 
 // applayer utils
 
+#define MAX_PACKSIZE 1024
+
 #define CF_START 2
 #define CF_END 3
+#define CF_DATA 1
 
 #define T_FILESIZE 0
 #define T_FILENAME 1

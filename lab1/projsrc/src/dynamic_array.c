@@ -1,6 +1,7 @@
 #include "dynamic_array.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 size_t getSize(dArray *a) {
     return a->size;
@@ -44,10 +45,9 @@ void stuffFrame(dArray *a) {
 void destuffFrame(dArray *a) {
     u_int8_t byte;
 
-    for (int i = 0; i < a->size; i++)
+    for (int i = 0; i < a->used; i++)
     {   
         byte = getArrayValue(a, i);
-
         if (byte == ESC) 
             descapeByte(a, i);
     }
@@ -58,9 +58,11 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
   a->size++;
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used++;
-
-  for (int i = index + 1; i < a->size - 1; i++)
+  printf("escape %x\n", byte);
+  for (int i = index + 1; i < a->size - 1; i++) {
     a->array[i+1] = a->array[i];
+  
+  }
 
   a->array[index] = ESC;
   a->array[index+1] = byte^0x20;
@@ -69,8 +71,11 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
 
 void descapeByte(dArray *a, int index)
 {
-  for (int i = index; i < a->size; i++) 
+  printf("descape %x\n", a->array[index]);
+  for (int i = index; i < a->used - 1; i++) {
     a->array[i] = a->array[i+1];
+  }
+          
   
   a->size--;
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
@@ -78,9 +83,9 @@ void descapeByte(dArray *a, int index)
 }
 
 u_int8_t generateBCC2(dArray *a) {
-  u_int8_t bcc; 
+  u_int8_t bcc = a->array[4]; 
 
-  for (int i = 4; i < a->size - 2; i++)
+  for (int i = 5; i < a->size - 2; i++)
     bcc ^= a->array[i];
 
   return bcc;

@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "application_layer.h"
 
@@ -41,6 +42,35 @@ int main(int argc, char *argv[])
            filename);
 
     applicationLayer(serialPort, role, BAUDRATE, N_TRIES, TIMEOUT, filename);
+
+    // data transfer 
+    int res;
+
+    if ((strcmp(role, "rx")) == 0) {
+        printf("Receiving file...\n");
+
+        res = readFile(filename);
+        if  (res == 0) {
+            printf("File read is empty. \n");
+            return 0;
+        }
+        else if (res == -1) {
+            printf("File read error. \n");
+            return 0;
+        }
+    }
+    else if ((strcmp(role, "tx")) == 0) {
+        printf("Sending file...\n");
+        
+        res = sendFile(filename);
+        if (res == -1) {
+            printf("File send error. \n");
+            return 0;
+        }
+    }
+
+    appLayer_exit();
+    printf("Program ended. \n");
 
     return 0;
 }
