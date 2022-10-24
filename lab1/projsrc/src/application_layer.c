@@ -221,6 +221,13 @@ int readFile(char *path) {
         printf("Error reading first control packet. \n");
         return -1;
     }
+    /*-received
+    char* new_filename = malloc(file_info.filename_size + 9);
+    char* old_filename =file_info.filename;
+    char* token = strtok(file_info.filename, '.');
+    char* snd_token = strtok() 
+    memcpy(newFileName, file_info.filename)
+    */
 
     FILE* fp;
 

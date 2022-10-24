@@ -504,7 +504,9 @@ int llread(unsigned char *packet)
                 printf("llread: bytes = -3\n");
                 sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
                 break;
-
+            case -4:
+                sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
+                break;
             default: 
                 printf("llread: bytes = %d\n", bytes);
                 break;
