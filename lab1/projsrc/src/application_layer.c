@@ -177,6 +177,7 @@ int writeFileContents(FILE *fp) {
     }
 
     printf("Finished file.\n");
+    appLayer_exit();
     return 0;
 }
 int sendFileContents(FILE *fp, long size) {
@@ -294,15 +295,17 @@ int sendFile(char* path) {
     }
 
     int end_res;
-    if ((end_res = sendEndPacket()) < 0) // send end ctrl packet
+    if ((end_res = sendEndPacket()) < 0) {// send end ctrl packet
         return -1;
+    }
     else if (end_res == 0) {
+        printf("sendend packet = 0\n");
         fclose(fp);
         appLayer_exit();
     }
 
-    printf("before fclose\n");
-    fclose(fp);
+    printf("before applayerexit\n");
+    appLayer_exit();
     return 0;
 
 }
@@ -351,8 +354,8 @@ int appLayer_exit() {
     free(file_info.filename);
     free(sPacket.packet);
     if (llclose(0) != 1) {
-        return -1;
+        exit(-1);
     }
 
-    return 0;
+    exit(0);
 }

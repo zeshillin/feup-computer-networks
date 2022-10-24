@@ -523,6 +523,7 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics) //using as fd
 {
+    printf("Using LLClose... \n");
     int nTries = 0;
 
     u_int8_t msg;
@@ -538,8 +539,7 @@ int llclose(int showStatistics) //using as fd
         }
     }
     else {
-        sendSUFrame(showStatistics, LlTx, CTRL_DC);
-
+        sendSUFrame(fd, LlTx, CTRL_DC);
         while (nTries < ll_connectionParameters.timeout) {
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_UA);

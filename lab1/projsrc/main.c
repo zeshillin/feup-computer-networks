@@ -41,7 +41,8 @@ int main(int argc, char *argv[])
            TIMEOUT,
            filename);
 
-    applicationLayer(serialPort, role, BAUDRATE, N_TRIES, TIMEOUT, filename);
+    if (applicationLayer(serialPort, role, BAUDRATE, N_TRIES, TIMEOUT, filename) < 0 )
+        appLayer_exit();
 
     // data transfer 
     int res;
