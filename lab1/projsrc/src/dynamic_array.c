@@ -35,7 +35,7 @@ void stuffFrame(dArray *a) {
     for(int i = 1; i < a->used - 1; i++) {
         byte = getArrayValue(a, i);
         if(byte == FLAG || byte == ESC)
-            escapeByte(a, i, byte);\
+            escapeByte(a, i, byte);
     }
 }
 
@@ -55,8 +55,8 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used++;
   printf("escape %x\n", byte);
-  for (int i = index + 1; i < a->used - 1; i++) {
-    a->array[i+1] = a->array[i];
+  for (int i = a->used; i > index + 1; i--) {
+    a->array[i] = a->array[i - 1];
   }
 
   a->array[index] = ESC;

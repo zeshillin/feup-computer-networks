@@ -179,7 +179,7 @@ int writeFileContents(FILE *fp) {
     printf("Finished file.\n");
     return 0;
 }
-int sendFileContents(FILE *fp, u_int8_t size) {
+int sendFileContents(FILE *fp, long size) {
     printf("sendFileCnt \n");
     unsigned char packet[MAX_PACKSIZE];
 
@@ -188,7 +188,7 @@ int sendFileContents(FILE *fp, u_int8_t size) {
     int write_res;
 
     printf("The contents of the file are : \n");
-    while (bytes < size) {
+    while ((long int) bytes < size) {
         
         // insert as much file content into packet as possible (4 bytes will be used for other packet camps) 
         if ((read_res = fread(packet + 4, 1 , MAX_PACKSIZE - 4, fp)) < 0) {
@@ -199,7 +199,7 @@ int sendFileContents(FILE *fp, u_int8_t size) {
         packet[0] = CF_DATA;
         packet[1] = (unsigned char) ((cur_seqNum++) % 256); 
         packet[2] = (unsigned char) (read_res / 256); 
-        packet[3] = (unsigned char ) (read_res % 256);
+        packet[3] = (unsigned char) (read_res % 256);
 
         if ((write_res = llwrite(packet, read_res + 4)) < 0)
             return -1;

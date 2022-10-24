@@ -31,7 +31,7 @@ int readControlPacket();
 int sendControlPacket(TLV* tlvs, int tlvNum, u_int8_t cf);
 
 int writeFileContents(FILE *fp);
-int sendFileContents(FILE *fp, u_int8_t size);
+int sendFileContents(FILE *fp, long size);
 
 int readFile(char *path);
 int sendFile(char* path);
