@@ -213,7 +213,7 @@ int sendFileContents(FILE *fp, u_int8_t size) {
 
 }
 
-int readFile() {
+int readFile(char *path) {
     printf("readFile \n");
     // read the starting packet
     if (readControlPacket() < 0) {
@@ -223,14 +223,7 @@ int readFile() {
 
     FILE* fp;
 
-    printf("filesize: %i", file_info.filename_size);
-
-    char filename[file_info.filename_size + 1];
-    memcpy(filename, file_info.filename, file_info.filename_size);
-
-    printf("filename: %s\n", filename);
-
-    if ((fp = fopen(filename, "w")) == NULL) {
+    if ((fp = fopen(path, "w")) == NULL) {
         printf("Error opening file (fopen error). \n");
         return -1;
     }
