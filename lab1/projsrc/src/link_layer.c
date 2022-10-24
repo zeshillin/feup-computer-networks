@@ -26,7 +26,7 @@ struct termios newtio;
 LinkLayer ll_connectionParameters;
 
 int fd;
-int cur_seqNum;
+int seqNum;
 
 //Frame MISC
 typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END } state;
@@ -146,14 +146,13 @@ int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
 
 //return -1 if read returned an error, -2 if wrong header, -3 if wrong seqNum, -4 if invalid bcc2
 u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
-    
     state state = START;
     dArray frame;
     initArray(&frame, 6);
 
     u_int8_t address = ADD_TX_AND_BACK;
     u_int8_t cur_ctrl = SEQNUM_TO_CONTROL(seqNum);
-    int next_seqNum = cur_seqNum ? 0 : 1;
+    int next_seqNum = seqNum ? 0 : 1;
     u_int8_t next_ctrl = SEQNUM_TO_CONTROL(next_seqNum);
 
     u_int8_t read_buf;
@@ -164,11 +163,11 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
         printf("one octet insertion\n");
         bytes = read(fd, &read_buf, 1);
         if (bytes == -1) {
-            printf("readIFrame ended with error");
+            printf("readIFrame ended with error\n");
             return -1;
         }
         else if (bytes == 0) { 
-            printf("readIFrame ended with 0 (no bytes read)");
+            printf("readIFrame ended with 0 (no bytes read)\n");
             freeArray(&frame);
             return 0;
         }
@@ -177,15 +176,20 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 
         switch(state) {
             case START:
+                printf("readIframe smachine: start");
                 if (read_buf == FLAG) 
                     state = FLAG_GOT;
                 break;
-            case FLAG_GOT :
-                if (read_buf == FLAG) 
+            case FLAG_GOT:
+                printf("Flag got\n");
+                if (read_buf == FLAG) {
+                    printf("Second flag got\n");
                     state = END;
+                }
                 break;
 
-            default: 
+            default:
+                printf("readIframe smachine: %d", state);
                 break;
         }
     }
@@ -199,70 +203,77 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 
     int i = 0;
 
-    while (state != END || i < frame.used) {
-       
+    while (state != END || i != frame.used) {
+       printf("Byte = %x ", frame.array[i]);
         switch (state) {
             case START:
                 if (frame.array[i] == FLAG)  
                     state = FLAG_GOT;
                 else {
-                    printf("error reading Iframe (wrong header)");
+                    printf("error reading Iframe (wrong header)\n");
                     return -2;
                 }
                 break;
             case FLAG_GOT:
+                printf("Flag got\n");
                 if (frame.array[i] == address)
                     state = ADDRESS_GOT;
                 else {
-                    printf("error reading Iframe (wrong header)");
+                    printf("error reading Iframe (wrong header)\n");
                     return -3;
                 }
                 break;
             case ADDRESS_GOT:
+                printf("Address got\n");
                 if (frame.array[i] == cur_ctrl) 
                     state = CTRL_GOT;
                 
-                else if (frame.array[i] == next_ctrl) 
+                else if (frame.array[i] == next_ctrl) {
+                    printf("wrong ctrl seqnum\n");
                     return -2;
+                }
                 else {
-                    printf("error reading Iframe (wrong header)");
+                    printf("error reading Iframe (wrong header)\n");
                     return -3;
                 }
                 break;
             case CTRL_GOT:
+                printf("Ctrl got\n");
                 if (frame.array[i] == (address^cur_ctrl)) 
                     state = BCC1_GOT;
                 else if (frame.array[i]== (address^next_ctrl)) {
-                    printf("error reading Iframe (wrong sequence number)");
+                    printf("error reading Iframe (wrong sequence number)\n");
                     return -3;
                 }
                 else {
-                    printf("error reading Iframe (wrong header)");
+                    printf("error reading Iframe (wrong header)\n");
                     return -2;
                 }
                 break;
 
             //data 
             case BCC1_GOT:
+                printf("Bcc1 got\n");
                 if (i == frame.used - 2) {
                     if (frame.array[i] == bcc2) 
                         state = BCC2_GOT;
                     else {
-                        printf("error reading Iframe (invalid BCC2)");
+                        printf("bcc2 %x\n", bcc2);
+                        printf("not equal to %x\n", frame.array[i]);
+                        printf("Error reading Iframe (invalid BCC2)\n");
                         return -4;
                     }
                 }
-                else {
-                   continue;
-                }
+            
                 break;
 
             case BCC2_GOT:
-                if (frame.array[i] == FLAG)  
+                printf("bcc2 got\n");
+                if (frame.array[i] == FLAG)
                     state = END;
                 else {
-                    printf("error reading Iframe (wrong header)");
-                    return -4;
+                    printf("error reading Iframe (wrong header)\n");
+                    return -2;
                 }
                 break;
 
@@ -273,22 +284,25 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     }
 
     dArray data = getData(&frame);
+    for(int i = 0; i < frame.used; i++) {
+        printf("%x ", frame.array[i]);
+    } 
+    printf("end of frame\n");
     freeArray(&frame);
 
     memcpy(buf, data.array, data.used);
 
-    return bytes;
+    printf("Getting out of readingIframe\n");
+    return data.used;
     
 }
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     //setting up frame components
+    printf("seqnum: %i", seqNum);
     u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
     u_int8_t bcc1 = ADD_TX_AND_BACK ^ ctrl;
-    u_int8_t bcc2 = buf[0];
-    printf("ctrl %x\n", ctrl);
-    printf("bcc1 %x\n", bcc1);
-    printf("bcc2 %c\n", bcc2);
+    u_int8_t bcc2 = 0;
 
     //concocting the frame 
     //dynamic array to store frame for resizing purposes (stuffing)
@@ -300,16 +314,20 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
     insertArray(&frame, ctrl);
     insertArray(&frame, bcc1);
 
-    for (int i = 1; i < length; i++) {
-        //printf("insert %x\n", buf[i]);
+    for (int i = 0; i < length; i++) {
+        //printf("insert %x", buf[i]);
         insertArray(&frame, buf[i]);
-        bcc2 = (bcc2 ^ buf[i]);
+        bcc2 ^= buf[i];
     }
     insertArray(&frame, bcc2);
 
     stuffFrame(&frame);
-
     insertArray(&frame, FLAG);
+
+    for(int i = 0; i < frame.used; i++) {
+        printf("%x ", frame.array[i]);
+    } 
+    printf("end of frame\n");
 
     int ret = write(fd, frame.array, frame.used);
 
@@ -374,7 +392,7 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
-    cur_seqNum = 0;
+    seqNum = 0;
 
     //if we're receiving
     if (connectionParameters.role == LlRx) {
@@ -421,8 +439,8 @@ int llwrite(const unsigned char *buf, int bufSize)
 {
     int nTries = 0;
     alarmCount = 0;
-    int old_seqNum = cur_seqNum; //connectionParameters.sequenceNumber;
-    int next_seqNum = cur_seqNum ? 0 : 1;
+    int old_seqNum = seqNum; //connectionParameters.sequenceNumber;
+    int next_seqNum = seqNum ? 0 : 1;
     
     int bytes;
     u_int8_t response; 
@@ -435,24 +453,26 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
 
         while (alarmCount < ll_connectionParameters.timeout) {
-                printf("here 1\n");
-                if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
-                    return bytes;
+            
+            if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
+                printf("iframe acknowledged correctly\n");
+                seqNum = next_seqNum;
+                return bytes;
+            }
+            else if ((response) == CTRL_REJ(old_seqNum)) {
+                if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
+                    printf("Problem sending IFrame (0 bytes sent) (2).\n");
+                    return -2;
                 }
-                else if ((response) == CTRL_REJ(old_seqNum)) {
-                    if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
-                        printf("Problem sending IFrame (0 bytes sent) (2).\n");
-                        return -2;
-                    }
-                    nTries = 0;
-                    break;
-                }
-                else if ((response == CTRL_RR(old_seqNum)) || (response == CTRL_REJ(old_seqNum))) {
-                    continue;
-                }
-                
-                sleep(3);
-                alarmCount++;
+                nTries = 0;
+                break;
+            }
+            else if ((response == CTRL_RR(old_seqNum)) || (response == CTRL_REJ(old_seqNum))) {
+                continue;
+            }
+            
+            sleep(3);
+            alarmCount++;
         }
         nTries++;
     }
@@ -467,30 +487,35 @@ int llwrite(const unsigned char *buf, int bufSize)
 int llread(unsigned char *packet)
 {
     //if read successful, change seqNum
-    int msg;
+    int bytes;
+    
     printf("before readIframe\n");
-    while ((msg = (readIFrame(fd, packet, cur_seqNum))) != 1) {
-        printf("after readiframe\n");
-        switch (msg) {
+    while ((bytes = (readIFrame(fd, packet, seqNum))) < 0) {
+        printf("after readiframe: ret = %d\n", bytes);
+        switch (bytes) {
             case -1:
+                printf("llread: bytes = -1\n");
                 return -1;
             case -2:
-                sendSUFrame(fd, LlTx, CTRL_REJ(cur_seqNum));
+                printf("llread: bytes = -2\n");
+                sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
             case -3: 
-                sendSUFrame(fd, LlTx, CTRL_RR(cur_seqNum));
+                printf("llread: bytes = -3\n");
+                sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
                 break;
 
             default: 
+                printf("llread: bytes = %d\n", bytes);
                 break;
         }
     }
 
-    cur_seqNum = cur_seqNum ? 0 : 1;
-    sendSUFrame(fd, LlTx, CTRL_RR(cur_seqNum));
-
-    return msg;
-
+    printf("before send SU frame\n");
+    seqNum = seqNum ? 0 : 1;
+    sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
+    printf("after send SU frame, returning from llread\n");
+    return bytes;
 }
 
 ////////////////////////////////////////////////

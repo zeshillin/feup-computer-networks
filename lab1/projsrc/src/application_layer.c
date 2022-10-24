@@ -19,11 +19,11 @@
 
 #define BUF_SIZE 256
 
+extern int fd;
+
 fileStruct file_info;
 startPacket sPacket;
-
-extern int fd;
-extern int cur_seqNum;
+int cur_seqNum = 0;
 
 int readTLV(unsigned char *packet, TLV *tlv) {
     printf("readingTLV \n");
@@ -67,8 +67,7 @@ int readControlPacket() {
     printf("after llread\n");
     if (packet[0] == CF_START) {
         while (index < bytes) {
-            if (!(ret = readTLV(packet + index, &tlv)))
-                return -1;
+            ret = readTLV(packet + index, &tlv);
             index += ret;
             free(tlv.V);
         }
@@ -78,7 +77,7 @@ int readControlPacket() {
         return 1;
     }
     else {
-        printf("Control packet yielded no discernible control field value. \n");
+        printf("Control packet yielded no discernible control field value: %c \n", packet[0]);
         return -1;
     }
 
@@ -94,10 +93,10 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
 
     unsigned char *buf = malloc(bufSize); 
     buf[0] = cf;
-    int idx;
+    int idx = 1;
 
     printf("loop tlvs \n");
-    for (int i = 1; i < tlvNum; i++) {
+    for (int i = 0; i < tlvNum; i++) {
         buf[idx++] = tlvs[i].T;
         buf[idx++] = tlvs[i].L;
         memcpy(buf + idx, tlvs[i].V, tlvs[i].L);
@@ -106,14 +105,13 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
     }
 
     printf("%s\n", buf);
-    
+
     int res = llwrite(buf, idx);
-    printf("%d\n", res);
     if (res < 0) {
         free(buf);
         return -1;
     }
-    else if (res != idx) {
+    else if (res < idx) {
         printf("Error sending control packet (TLV sizes didn't match llwrite return).\n");
         free(buf);
         return -1;
@@ -128,18 +126,20 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
 }
 int sendEndPacket () {
     printf("sendEndPacket \n");
-    int res = llwrite(sPacket.packet, sPacket.packet_size);
+    unsigned char *packet = malloc(sPacket.packet_size); 
+    memcpy(packet, sPacket.packet, sPacket.packet_size);
+    packet[0] = CF_END;
+    int res = llwrite(packet, sPacket.packet_size);
+    printf("problem? \n");
+    free(packet);
     if (res < 0) {
-        free(sPacket.packet);
         return -1;
     }
-    else if (res != sPacket.packet_size) {
+    else if (res < sPacket.packet_size) {
         printf("Error sending end packet (TLV sizes didn't match llwrite return).\n");
-        free(sPacket.packet);
         return -1;
     }
-
-    free(sPacket.packet);
+    printf("problem 2\n");
     return 0;
 }
 
@@ -151,21 +151,24 @@ int writeFileContents(FILE *fp) {
     int data_bytes;
     int res_write;
 
-    while (packet[0] != CF_END) {
+    while (1) {
         if ((read_size = llread((unsigned char *) packet)) < 0) 
             return -1;
+        if (packet[0] == CF_END) {
+            break;
+        }
         if (packet[0] != CF_DATA) {
-             printf("Error writing to file: read a non-data packet.\n");
+             printf("Error writing to file: read a non-data packet: %x\n", packet[0]);
             return -1;
         }
-        else if (packet[1] != (cur_seqNum++ % 256)) {
+        else if (packet[1] != ((cur_seqNum++) % 256)) {
             printf("Error writing to file: wrong sequence number frame.\n");
             return -1;
         }
-
+ 
         data_bytes = 256 * packet[2] + packet[3];
         if ((res_write = fwrite(packet + 4, 1, data_bytes, fp)) < 0) {
-            printf("Error writing to file: wrong sequence number frame.\n");
+            printf("Error writing to file: fwrite returned an error.\n");
             return -1;
         }
 
@@ -173,6 +176,7 @@ int writeFileContents(FILE *fp) {
         
     }
 
+    printf("Finished file.\n");
     return 0;
 }
 int sendFileContents(FILE *fp, u_int8_t size) {
@@ -191,10 +195,11 @@ int sendFileContents(FILE *fp, u_int8_t size) {
             printf("FRead error while sending file contents. \n");
             return -1;
         }
+
         packet[0] = CF_DATA;
-        packet[1] = (cur_seqNum + 1) % 256; 
-        packet[2] = read_res / 256; 
-        packet[3] = read_res - packet[2]*256;
+        packet[1] = (unsigned char) ((cur_seqNum++) % 256); 
+        packet[2] = (unsigned char) (read_res / 256); 
+        packet[3] = (unsigned char ) (read_res % 256);
 
         if ((write_res = llwrite(packet, read_res + 4)) < 0)
             return -1;
@@ -202,7 +207,6 @@ int sendFileContents(FILE *fp, u_int8_t size) {
         bytes += read_res;
         memset(packet, 0, sizeof(packet));
 
-        cur_seqNum++;
     }
 
     return 0;
@@ -212,15 +216,19 @@ int sendFileContents(FILE *fp, u_int8_t size) {
 int readFile() {
     printf("readFile \n");
     // read the starting packet
-    if (!readControlPacket()) {
+    if (readControlPacket() < 0) {
         printf("Error reading first control packet. \n");
         return -1;
     }
 
     FILE* fp;
 
-    char filename[file_info.filename_size];
+    printf("filesize: %i", file_info.filename_size);
+
+    char filename[file_info.filename_size + 1];
     memcpy(filename, file_info.filename, file_info.filename_size);
+
+    printf("filename: %s\n", filename);
 
     if ((fp = fopen(filename, "w")) == NULL) {
         printf("Error opening file (fopen error). \n");
@@ -228,6 +236,7 @@ int readFile() {
     }
 
     int res = writeFileContents(fp);
+
     fclose(fp);
 
     return res;
@@ -242,7 +251,7 @@ int sendFile(char* path) {
     u_int8_t fname_sz;
 
     // 256 is the maximum size a file (max of pathname is 4096 in C-lang)
-    if ((fname_sz = strnlen(fname, 255)) == 256) {
+    if ((fname_sz = strnlen(fname, 256)) == 256) {
         printf("Error: Filename is too long.\n"); 
         return -1;
     }
@@ -255,18 +264,18 @@ int sendFile(char* path) {
     }
     int prev = ftell(fp);
     fseek(fp, 0L, SEEK_END);
-    u_int8_t fsize = ftell(fp);
+    long fsize = ftell(fp);
     
-    printf("%d \n", fsize);
+    printf("%ld \n", fsize);
     fseek(fp, prev, SEEK_SET); 
 
     // craft filesize TLV
     filesz.T = T_FILESIZE;
     filesz.L = sizeof(fsize);
-    filesz.V = malloc(filesz.L);
+    filesz.V = malloc(filesz.L*sizeof(unsigned char));
     memcpy(filesz.V, &fsize, sizeof(fsize));
 
-    printf("%d\n", filesz.L);
+    printf("fsz_L: %d\n", filesz.L);
 
     // craft filename TLV
     filename.T = T_FILENAME;
@@ -274,11 +283,12 @@ int sendFile(char* path) {
     filename.V = malloc(fname_sz);
     memcpy(filename.V, fname, fname_sz);
 
-    printf("%d\n", filename.L);
-    printf("%s\n", filename.V);
+    printf("L: %d\n", filename.L);
+    printf("V: %s\n", filename.V);
 
     TLV tlvs[] = {filesz, filename};
-    sendControlPacket(tlvs, 2, CF_START); // send start ctrl packet
+    if (sendControlPacket(tlvs, 2, CF_START) < 0) // send start ctrl packet
+        return -1; 
     
     free(filesz.V);
     free(filename.V);
@@ -290,12 +300,16 @@ int sendFile(char* path) {
         return -1;
     }
 
-    sendEndPacket(); // send end ctrl packet
+    int end_res;
+    if ((end_res = sendEndPacket()) < 0) // send end ctrl packet
+        return -1;
+    else if (end_res == 0) {
+        fclose(fp);
+        appLayer_exit();
+    }
 
-    free(filesz.V);
-    free(filename.V);
+    printf("before fclose\n");
     fclose(fp);
-
     return 0;
 
 }
@@ -333,6 +347,8 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
     }
     printf("llopen working");
 
+    cur_seqNum = 0;
+
     return 0;
 
 }
@@ -340,8 +356,10 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
 int appLayer_exit() {
 
     free(file_info.filename);
+    free(sPacket.packet);
     if (llclose(0) != 1) {
         return -1;
     }
+
     return 0;
 }

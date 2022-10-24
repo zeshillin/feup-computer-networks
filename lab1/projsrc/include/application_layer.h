@@ -12,7 +12,7 @@
 typedef struct {
     char* filename;
     u_int8_t filename_size;
-    u_int8_t filesize;
+    long filesize;
 } fileStruct;
 
 typedef struct {

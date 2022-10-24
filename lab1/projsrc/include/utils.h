@@ -12,7 +12,7 @@
 #define CTRL_UA  0x07
 #define CTRL_RR(n) ((n << 7) | 0x05)
 #define CTRL_REJ(n) ((n << 7) | 0x01)
-#define SEQNUM_TO_CONTROL(n) (n << 6)
+#define SEQNUM_TO_CONTROL(n) ((1 & n) << 6)
 
 #define ESC 0x7D
 #define ESC_SUB 0x5D

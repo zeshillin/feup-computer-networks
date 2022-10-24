@@ -31,22 +31,18 @@ void insertArray(dArray *a, const u_int8_t element) {
 void stuffFrame(dArray *a) { 
     u_int8_t byte;
 
-    //skip over first byte which is a flag
-    for(int i = 1; i < a->size; i++)
-    {
+    //skip over first and last byte which are flags
+    for(int i = 1; i < a->used - 1; i++) {
         byte = getArrayValue(a, i);
-
         if(byte == FLAG || byte == ESC)
-            escapeByte(a, i, byte);
-        
+            escapeByte(a, i, byte);\
     }
 }
 
 void destuffFrame(dArray *a) {
     u_int8_t byte;
 
-    for (int i = 0; i < a->used; i++)
-    {   
+    for (int i = 1; i < a->used; i++) {   
         byte = getArrayValue(a, i);
         if (byte == ESC) 
             descapeByte(a, i);
@@ -59,33 +55,31 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used++;
   printf("escape %x\n", byte);
-  for (int i = index + 1; i < a->size - 1; i++) {
+  for (int i = index + 1; i < a->used - 1; i++) {
     a->array[i+1] = a->array[i];
-  
   }
 
   a->array[index] = ESC;
   a->array[index+1] = byte^0x20;
-
 }
 
 void descapeByte(dArray *a, int index)
 {
   printf("descape %x\n", a->array[index]);
-  for (int i = index; i < a->used - 1; i++) {
+  for (int i = index; i < a->used; i++) {
     a->array[i] = a->array[i+1];
   }
-          
-  
+  a->array[index] ^= 0x20;
+
   a->size--;
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used--;
 }
 
 u_int8_t generateBCC2(dArray *a) {
-  u_int8_t bcc = a->array[4]; 
+  u_int8_t bcc = 0; 
 
-  for (int i = 5; i < a->size - 2; i++)
+  for (int i = 4; i < a->used - 2; i++)
     bcc ^= a->array[i];
 
   return bcc;
@@ -95,7 +89,7 @@ dArray getData(dArray *a) {
   dArray data_array;
   initArray(&data_array, 1);
 
-  for (int i = 4; i < a->size - 2; i++)
+  for (int i = 4; i < a->used - 2; i++)
     insertArray(&data_array, a->array[i]);
   
   return data_array;
