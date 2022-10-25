@@ -37,26 +37,14 @@ int alarmCount = 0;
 
 // Alarm function handler
 void alarmHandler(int signal)
-{
+{   
+    if (alarmCount == 4) {
+        exit(-1);
+    }
     alarmEnabled = FALSE;
     alarmCount++;
 
     printf("Alarm #%d\n", alarmCount);
-}
-
-// Set alarm function handler, to be used while receiving data
-int alarmWrapper() {
-    (void)signal(SIGALRM, alarmHandler);
-
-    while (alarmCount < 4)
-    {
-        if (alarmEnabled == FALSE)
-        {
-            alarm(3); // Set alarm to be triggered in 3s
-            alarmEnabled = TRUE;
-        }
-    }
-    return 0;
 }
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
@@ -74,15 +62,15 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
             printf("receive ended with -1");
             return -1;
         }
+        /* having this nulls the alarm 
         else if (bytes == 0) { 
             
             printf("receive ended with 0 (no bytes read)");
             return 0;
         }
-
+        */
         switch (state) {            
             case START:
-                printf("start received");
                 if (read_buf == FLAG) 
                     state = FLAG_GOT;
                 break;
@@ -166,11 +154,13 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
             printf("readIFrame ended with error\n");
             return -1;
         }
+        /* having this nulls the alarm
         else if (bytes == 0) { 
             printf("readIFrame ended with 0 (no bytes read)\n");
             freeArray(&frame);
             return 0;
         }
+        */
         printf("%d\n", read_buf);
         insertArray(&frame, read_buf);
 
@@ -373,7 +363,7 @@ int llopen(LinkLayer connectionParameters)
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = connectionParameters.timeout; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 1;  // Blocking read until 1 chars received
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 1 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -403,22 +393,26 @@ int llopen(LinkLayer connectionParameters)
     }
     //if we're transmitting
     else if (connectionParameters.role == LlTx) {
-        printf("Lltx if");
         int nTries = 0;
         alarmCount = 0;
+        (void)signal(SIGALRM, alarmHandler);
 
         while (nTries < connectionParameters.nRetransmissions) {
             printf("sending frame");
             sendSUFrame(fd, LlTx, CTRL_SET);
             
             while (alarmCount < connectionParameters.timeout) {
+                if (alarmEnabled == FALSE) {
+                alarm(3); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+                }
+
                 printf("sent frame");
                 if (readSUFrame(fd, LlTx) == CTRL_UA) {
                     printf("received ack frame");
                     return 1;
                 }
-                sleep(3);
-                alarmCount++;
+                
              }
              nTries++;
         }
@@ -445,34 +439,34 @@ int llwrite(const unsigned char *buf, int bufSize)
     int bytes;
     u_int8_t response; 
 
+    alarmCount = 0;
+    (void)signal(SIGALRM, alarmHandler);
+
     while (nTries < ll_connectionParameters.nRetransmissions) {
         printf("sending iframe\n");
-        if (!(bytes = sendIFrame(fd, buf, bufSize, old_seqNum))) {
+        if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
             printf("Problem sending IFrame (0 bytes sent).\n");
             return -2;
         }
 
-        while (alarmCount < ll_connectionParameters.timeout) {
-            
+        while ((alarmCount < ll_connectionParameters.timeout) && (response != CTRL_RR(next_seqNum))) {
+            if (alarmEnabled == FALSE) {
+                alarm(3); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+            }
             if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
                 printf("iframe acknowledged correctly\n");
                 seqNum = next_seqNum;
                 return bytes;
             }
-            else if ((response) == CTRL_REJ(old_seqNum)) {
-                if (!sendIFrame(fd, buf, bufSize, old_seqNum)) {
-                    printf("Problem sending IFrame (0 bytes sent) (2).\n");
-                    return -2;
-                }
-                nTries = 0;
+            if ((response) == CTRL_REJ(old_seqNum)) {    
+                alarmCount = 0;
                 break;
+            }  
+            if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
+                printf("Problem sending IFrame (0 bytes sent).\n");
+                return -2;
             }
-            else if ((response == CTRL_RR(old_seqNum)) || (response == CTRL_REJ(old_seqNum))) {
-                continue;
-            }
-            
-            sleep(3);
-            alarmCount++;
         }
         nTries++;
     }
@@ -500,10 +494,6 @@ int llread(unsigned char *packet)
                 printf("llread: bytes = -2\n");
                 sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
-            case -3: 
-                printf("llread: bytes = -3\n");
-                sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
-                break;
             case -4:
                 sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
@@ -513,6 +503,7 @@ int llread(unsigned char *packet)
         }
     }
 
+    //for testing purposes -> sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
     printf("before send SU frame\n");
     seqNum = seqNum ? 0 : 1;
     sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
@@ -526,29 +517,32 @@ int llread(unsigned char *packet)
 int llclose(int showStatistics) //using as fd
 {
     printf("Using LLClose... \n");
-    int nTries = 0;
-
+    
     u_int8_t msg;
 
+    int nTries = 0;
+    alarmCount = 0;
+    (void)signal(SIGALRM, alarmHandler);
     if (ll_connectionParameters.role == LlRx) {
         while (nTries < ll_connectionParameters.timeout) {
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_DC);
                 break;
-            }
-            sleep(3);
-            alarmCount++;        
+            }      
         }
     }
     else {
         sendSUFrame(fd, LlTx, CTRL_DC);
         while (nTries < ll_connectionParameters.timeout) {
+            if (alarmEnabled == FALSE) {
+                alarm(3); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+            }
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_UA);
                 break;
             }
-            sleep(3);
-            alarmCount++;
+        
         }
     }
 

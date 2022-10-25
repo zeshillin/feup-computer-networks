@@ -188,7 +188,6 @@ int sendFileContents(FILE *fp, long size) {
     int read_res;
     int write_res;
 
-    printf("The contents of the file are : \n");
     while ((long int) bytes < size) {
         
         // insert as much file content into packet as possible (4 bytes will be used for other packet camps) 
