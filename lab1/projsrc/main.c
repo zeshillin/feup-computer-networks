@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     if ((strcmp(role, "rx")) == 0) {
         printf("Receiving file...\n");
 
-        res = readFile(filename);
+        res = readFile();
         if  (res == 0) {
             printf("File read is empty. \n");
             return 0;

@@ -31,7 +31,7 @@ int readTLV(unsigned char *packet, TLV *tlv) {
     tlv->L = packet[1];
     tlv->V = malloc (tlv->L);
     
-    for (int i = 2; i < tlv->L; i++)
+    for (int i = 2; i < tlv->L + 2; i++)
         tlv->V[i-2] = packet[i];
 
 
@@ -42,6 +42,8 @@ int readTLV(unsigned char *packet, TLV *tlv) {
         file_info.filename_size = tlv->L;
         file_info.filename = malloc(tlv->L);
         memcpy(file_info.filename, tlv->V, file_info.filename_size);
+        printf("filename: %s\n", tlv->V);
+        
     }
     else {
         printf("Error receiving TLV info (T parameter undefined). \n");
@@ -116,7 +118,6 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
         free(buf);
         return -1;
     }
-    printf("here 2\n");
     sPacket.packet_size = bufSize;
     sPacket.packet = malloc(bufSize);
     memcpy(sPacket.packet, buf, bufSize);
@@ -125,13 +126,11 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
     return res;
 }
 int sendEndPacket () {
-    printf("sendEndPacket \n");
     unsigned char *packet = malloc(sPacket.packet_size); 
     memcpy(packet, sPacket.packet, sPacket.packet_size);
     packet[0] = CF_END;
+
     int res = llwrite(packet, sPacket.packet_size);
-    printf("problem? \n");
-    free(packet);
     if (res < 0) {
         return -1;
     }
@@ -139,7 +138,7 @@ int sendEndPacket () {
         printf("Error sending end packet (TLV sizes didn't match llwrite return).\n");
         return -1;
     }
-    printf("problem 2\n");
+    free(packet);
     return 0;
 }
 
@@ -222,12 +221,11 @@ int readFile() {
     }
 
     char* new_filename = malloc(file_info.filename_size + 9);
-    char* old_filename = file_info.filename;
 
-    char* token = strtok(old_filename, '.');
+    char* token = strtok(file_info.filename, ".");
     strcpy(new_filename, token);
     strcat(new_filename, "-received.");
-    strcpy(new_filename, old_filename);
+    strcat(new_filename, file_info.filename + (strlen(token) + 1));
     
     FILE* fp;
 
@@ -240,6 +238,7 @@ int readFile() {
 
     fclose(fp);
 
+    free(new_filename);
     return res;
 }
 int sendFile(char* path) {
@@ -306,7 +305,6 @@ int sendFile(char* path) {
         return -1;
     }
     else if (end_res == 0) {
-        printf("sendend packet = 0\n");
         fclose(fp);
         appLayer_exit();
     }

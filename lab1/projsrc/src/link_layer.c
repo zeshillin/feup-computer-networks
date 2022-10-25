@@ -38,9 +38,10 @@ int alarmCount = 0;
 // Alarm function handler
 void alarmHandler(int signal)
 {   
+    /*
     if (alarmCount == 4) {
         exit(-1);
-    }
+    }*/
     alarmEnabled = FALSE;
     alarmCount++;
 
@@ -75,7 +76,6 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
                     state = FLAG_GOT;
                 break;
             case FLAG_GOT:
-                printf("flag rcv");
                 if (read_buf == address) {
                     state = ADDRESS_GOT;
                 }
@@ -84,7 +84,6 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
                 else state = START;
                 break;
             case ADDRESS_GOT:
-                printf("address received");
                 if (read_buf == FLAG) 
                     state = FLAG_GOT;
                 else {
@@ -102,7 +101,6 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 
                 break;
             case BCC1_GOT:
-                printf("bcc received");
                 if (read_buf == FLAG)
                     state = END; 
                 else state = START;    
@@ -121,7 +119,6 @@ int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
     u_int8_t frame[5];
     u_int8_t address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
     u_int8_t bcc = address ^ msg;
-    printf("tried to send frame with func");
 
     frame[0] = FLAG;
     frame[1] = address;
@@ -148,7 +145,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 
     printf("start readiframe\n");
     while (state != END) {
-        printf("one octet insertion\n");
         bytes = read(fd, &read_buf, 1);
         if (bytes == -1) {
             printf("readIFrame ended with error\n");
@@ -161,40 +157,32 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
             return 0;
         }
         */
-        printf("%d\n", read_buf);
         insertArray(&frame, read_buf);
 
         switch(state) {
             case START:
-                printf("readIframe smachine: start");
+                
                 if (read_buf == FLAG) 
                     state = FLAG_GOT;
                 break;
             case FLAG_GOT:
-                printf("Flag got\n");
                 if (read_buf == FLAG) {
-                    printf("Second flag got\n");
                     state = END;
                 }
                 break;
 
             default:
-                printf("readIframe smachine: %d", state);
                 break;
         }
     }
 
-    printf("destuff frame \n");
     destuffFrame(&frame);
-    printf("after destuff\n");
     u_int8_t bcc2 = generateBCC2(&frame);
-    printf("after bcc2\n");
     state = START;
 
     int i = 0;
 
     while (state != END || i != frame.used) {
-       printf("Byte = %x ", frame.array[i]);
         switch (state) {
             case START:
                 if (frame.array[i] == FLAG)  
@@ -205,7 +193,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 }
                 break;
             case FLAG_GOT:
-                printf("Flag got\n");
                 if (frame.array[i] == address)
                     state = ADDRESS_GOT;
                 else {
@@ -214,7 +201,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 }
                 break;
             case ADDRESS_GOT:
-                printf("Address got\n");
                 if (frame.array[i] == cur_ctrl) 
                     state = CTRL_GOT;
                 
@@ -228,7 +214,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 }
                 break;
             case CTRL_GOT:
-                printf("Ctrl got\n");
                 if (frame.array[i] == (address^cur_ctrl)) 
                     state = BCC1_GOT;
                 else if (frame.array[i]== (address^next_ctrl)) {
@@ -243,13 +228,12 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
 
             //data 
             case BCC1_GOT:
-                printf("Bcc1 got\n");
                 if (i == frame.used - 2) {
                     if (frame.array[i] == bcc2) 
                         state = BCC2_GOT;
                     else {
-                        printf("bcc2 %x\n", bcc2);
-                        printf("not equal to %x\n", frame.array[i]);
+                        /*printf("bcc2 %x\n", bcc2);
+                        printf("not equal to %x\n", frame.array[i]); */
                         printf("Error reading Iframe (invalid BCC2)\n");
                         return -4;
                     }
@@ -258,7 +242,6 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 break;
 
             case BCC2_GOT:
-                printf("bcc2 got\n");
                 if (frame.array[i] == FLAG)
                     state = END;
                 else {
@@ -274,10 +257,10 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     }
 
     dArray data = getData(&frame);
-    for(int i = 0; i < frame.used; i++) {
+    /*for(int i = 0; i < frame.used; i++) {
         printf("%x ", frame.array[i]);
     } 
-    printf("end of frame\n");
+    printf("end of frame\n");*/
     freeArray(&frame);
 
     memcpy(buf, data.array, data.used);
@@ -314,10 +297,10 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
     stuffFrame(&frame);
     insertArray(&frame, FLAG);
 
-    for(int i = 0; i < frame.used; i++) {
+    /*for(int i = 0; i < frame.used; i++) {
         printf("%x ", frame.array[i]);
     } 
-    printf("end of frame\n");
+    printf("end of frame\n");*/
 
     int ret = write(fd, frame.array, frame.used);
 

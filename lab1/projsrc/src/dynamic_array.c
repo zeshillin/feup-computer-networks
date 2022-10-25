@@ -54,7 +54,6 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
   a->size++;
   a->array = realloc(a->array, a->size * sizeof(u_int8_t));
   a->used++;
-  printf("escape %x\n", byte);
   for (int i = a->used; i > index + 1; i--) {
     a->array[i] = a->array[i - 1];
   }
@@ -65,7 +64,6 @@ void escapeByte(dArray *a, int index, u_int8_t byte) {
 
 void descapeByte(dArray *a, int index)
 {
-  printf("descape %x\n", a->array[index]);
   for (int i = index; i < a->used; i++) {
     a->array[i] = a->array[i+1];
   }
