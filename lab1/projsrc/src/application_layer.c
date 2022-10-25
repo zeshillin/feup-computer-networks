@@ -213,24 +213,25 @@ int sendFileContents(FILE *fp, long size) {
 
 }
 
-int readFile(char *path) {
+int readFile() {
     printf("readFile \n");
     // read the starting packet
     if (readControlPacket() < 0) {
         printf("Error reading first control packet. \n");
         return -1;
     }
-    /*-received
-    char* new_filename = malloc(file_info.filename_size + 9);
-    char* old_filename =file_info.filename;
-    char* token = strtok(file_info.filename, '.');
-    char* snd_token = strtok() 
-    memcpy(newFileName, file_info.filename)
-    */
 
+    char* new_filename = malloc(file_info.filename_size + 9);
+    char* old_filename = file_info.filename;
+
+    char* token = strtok(old_filename, '.');
+    strcpy(new_filename, token);
+    strcat(new_filename, "-received.");
+    strcpy(new_filename, old_filename);
+    
     FILE* fp;
 
-    if ((fp = fopen(path, "w")) == NULL) {
+    if ((fp = fopen(new_filename, "w")) == NULL) {
         printf("Error opening file (fopen error). \n");
         return -1;
     }
