@@ -26,7 +26,6 @@ startPacket sPacket;
 int cur_seqNum = 0;
 
 int readTLV(unsigned char *packet, TLV *tlv) {
-    printf("readingTLV \n");
     tlv->T = packet[0];
     tlv->L = packet[1];
     tlv->V = malloc (tlv->L);
@@ -41,9 +40,7 @@ int readTLV(unsigned char *packet, TLV *tlv) {
     else if (tlv->T == T_FILENAME) {
         file_info.filename_size = tlv->L;
         file_info.filename = malloc(tlv->L);
-        memcpy(file_info.filename, tlv->V, file_info.filename_size);
-        printf("filename: %s\n", tlv->V);
-        
+        memcpy(file_info.filename, tlv->V, file_info.filename_size);        
     }
     else {
         printf("Error receiving TLV info (T parameter undefined). \n");
@@ -54,19 +51,17 @@ int readTLV(unsigned char *packet, TLV *tlv) {
 }
 
 int readControlPacket() {
-    printf("readCtrlPacket \n");
     unsigned char packet[BUF_SIZE];
     TLV tlv;
     int ret;
     int index = 1; // start reading packet after the control octet
 
-    printf("before llread\n");
     int bytes = llread(packet);
     if (bytes == -1 || bytes == 0) {
         printf("LLRead failed while trying to read control packet. \n");
         return -1;
     }
-    printf("after llread\n");
+
     if (packet[0] == CF_START) {
         while (index < bytes) {
             ret = readTLV(packet + index, &tlv);
@@ -86,8 +81,6 @@ int readControlPacket() {
     return 0;
 }
 int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
-    printf("%d\n", tlvs[0].L);
-    printf("sendCtrlPacket \n");
     int bufSize = 1; // control field
     // calculate full byte length of packet we'll need to send every TLV
     for (int i = 0; i < tlvNum; i++) 
@@ -97,16 +90,12 @@ int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
     buf[0] = cf;
     int idx = 1;
 
-    printf("loop tlvs \n");
     for (int i = 0; i < tlvNum; i++) {
         buf[idx++] = tlvs[i].T;
         buf[idx++] = tlvs[i].L;
         memcpy(buf + idx, tlvs[i].V, tlvs[i].L);
         idx += tlvs[i].L; 
-        printf("%d\n", tlvs[i].L);
     }
-
-    printf("%s\n", buf);
 
     int res = llwrite(buf, idx);
     if (res < 0) {
@@ -143,7 +132,6 @@ int sendEndPacket () {
 }
 
 int writeFileContents(FILE *fp) {
-    printf("writeFilecnt \n");
     u_int8_t packet[MAX_PACKSIZE] = {0};
 
     int read_size;
@@ -180,7 +168,6 @@ int writeFileContents(FILE *fp) {
     return 0;
 }
 int sendFileContents(FILE *fp, long size) {
-    printf("sendFileCnt \n");
     unsigned char packet[MAX_PACKSIZE];
 
     int bytes = 0;
@@ -213,7 +200,6 @@ int sendFileContents(FILE *fp, long size) {
 }
 
 int readFile() {
-    printf("readFile \n");
     // read the starting packet
     if (readControlPacket() < 0) {
         printf("Error reading first control packet. \n");
@@ -242,7 +228,6 @@ int readFile() {
     return res;
 }
 int sendFile(char* path) {
-    printf("sendFile \n");
     TLV filename; // packet structure with filename 
     TLV filesz; // packet structure with filesize
 
@@ -265,8 +250,6 @@ int sendFile(char* path) {
     int prev = ftell(fp);
     fseek(fp, 0L, SEEK_END);
     long fsize = ftell(fp);
-    
-    printf("%ld \n", fsize);
     fseek(fp, prev, SEEK_SET); 
 
     // craft filesize TLV
@@ -275,16 +258,11 @@ int sendFile(char* path) {
     filesz.V = malloc(filesz.L*sizeof(unsigned char));
     memcpy(filesz.V, &fsize, sizeof(fsize));
 
-    printf("fsz_L: %d\n", filesz.L);
-
     // craft filename TLV
     filename.T = T_FILENAME;
     filename.L = fname_sz;
     filename.V = malloc(fname_sz);
     memcpy(filename.V, fname, fname_sz);
-
-    printf("L: %d\n", filename.L);
-    printf("V: %s\n", filename.V);
 
     TLV tlvs[] = {filesz, filename};
     if (sendControlPacket(tlvs, 2, CF_START) < 0) // send start ctrl packet
@@ -309,10 +287,8 @@ int sendFile(char* path) {
         appLayer_exit();
     }
 
-    printf("before applayerexit\n");
     appLayer_exit();
     return 0;
-
 }
 
 int applicationLayer(const char *serialPort, const char *role, int baudRate,
@@ -327,7 +303,6 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
     layer.nRetransmissions = nTries;
     layer.timeout = timeout;
     
-    printf("checkpoint");
     if ((strcmp(role, "tx")) == 0) {
         printf("Role estabilished: Transmissor\n");
         layer.role = LlTx;
@@ -337,6 +312,7 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
         layer.role = LlRx;
     }
 
+    printf("Estabilishing connection with llopen...\n\n");
     int res = llopen(layer);
     if (res == -1) {
         printf("LLOpen failure: error opening file descriptor.\n");
@@ -346,7 +322,7 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("LLOpen failure (too many tries)\n");
         return -1;
     }
-    printf("llopen working");
+    printf("Connection estabilished!\n\n");
 
     cur_seqNum = 0;
 
@@ -358,9 +334,13 @@ int appLayer_exit() {
 
     free(file_info.filename);
     free(sPacket.packet);
-    if (llclose(0) != 1) {
-        exit(-1);
-    }
 
-    exit(0);
+    printf("Ending connection with llclose...\n\n");
+    if (llclose(0) == 0) {
+        printf("Program ended with llclose.\n\n");
+        exit(0);
+    }
+    
+    printf("Failed to end program with llclose.\n\n");
+    exit(-1);
 }

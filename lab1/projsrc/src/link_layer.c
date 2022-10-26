@@ -34,33 +34,45 @@ typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_
 // Alarm MISC
 int alarmEnabled = FALSE;
 int alarmCount = 0;
+bool timeExceeded = FALSE;
 
 // Alarm function handler
 void alarmHandler(int signal)
 {   
-    /*
-    if (alarmCount == 4) {
-        exit(-1);
-    }*/
+    timeExceeded = TRUE;
     alarmEnabled = FALSE;
     alarmCount++;
 
-    printf("Alarm #%d\n", alarmCount);
+    if (ll_connectionParameters.role == LlTx) {
+        if (alarmCount == ll_connectionParameters.nRetransmissions)
+            printf("Too many retries: %i\n\n", ll_connectionParameters.nRetransmissions);
+        else
+            printf("Retry nº: #%d\n", alarmCount);
+    }
 }
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
+
     state state = START;
     u_int8_t ctrl = 0, address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
 
     u_int8_t read_buf;
     int bytes;
 
+    timeExceeded = FALSE;
+
     while (state != END)  
     {   
+        if (timeExceeded) {return -1; }
+        
+        (void)signal(SIGALRM, alarmHandler);
+        if (alarmEnabled == FALSE) {
+            alarm(ll_connectionParameters.timeout); // Set alarm to be triggered in 4s
+            alarmEnabled = TRUE;
+        }
+
         bytes = read(fd, &read_buf, 1);
         if (bytes == -1) {
-
-            printf("receive ended with -1");
             return -1;
         }
         /* having this nulls the alarm 
@@ -143,11 +155,20 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     u_int8_t read_buf;
     int bytes;
 
-    printf("start readiframe\n");
+    timeExceeded = FALSE;
+
     while (state != END) {
+        if (timeExceeded) { return -1; }
+
+        (void)signal(SIGALRM, alarmHandler);
+        if (alarmEnabled == FALSE) {
+            alarm(ll_connectionParameters.timeout); // Set alarm to be triggered in 3s
+            alarmEnabled = TRUE;
+        }
+        
         bytes = read(fd, &read_buf, 1);
         if (bytes == -1) {
-            printf("readIFrame ended with error\n");
+            printf("Read function returned an error (-1)\n\n");
             return -1;
         }
         /* having this nulls the alarm
@@ -188,7 +209,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 if (frame.array[i] == FLAG)  
                     state = FLAG_GOT;
                 else {
-                    printf("error reading Iframe (wrong header)\n");
+                    printf("Error reading Iframe (wrong header)\n\n");
                     return -2;
                 }
                 break;
@@ -196,7 +217,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 if (frame.array[i] == address)
                     state = ADDRESS_GOT;
                 else {
-                    printf("error reading Iframe (wrong header)\n");
+                    printf("Error reading Iframe (wrong header)\n\n");
                     return -3;
                 }
                 break;
@@ -205,11 +226,11 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                     state = CTRL_GOT;
                 
                 else if (frame.array[i] == next_ctrl) {
-                    printf("wrong ctrl seqnum\n");
+                    printf("Error reading Iframe (wrong sequence number)\n\n");
                     return -2;
                 }
                 else {
-                    printf("error reading Iframe (wrong header)\n");
+                    printf("Error reading Iframe (wrong header)\n\n");
                     return -3;
                 }
                 break;
@@ -217,11 +238,11 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 if (frame.array[i] == (address^cur_ctrl)) 
                     state = BCC1_GOT;
                 else if (frame.array[i]== (address^next_ctrl)) {
-                    printf("error reading Iframe (wrong sequence number)\n");
+                    printf("Error reading Iframe (wrong sequence number)\n\n");
                     return -3;
                 }
                 else {
-                    printf("error reading Iframe (wrong header)\n");
+                    printf("Error reading Iframe (wrong header)\n\n");
                     return -2;
                 }
                 break;
@@ -232,9 +253,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                     if (frame.array[i] == bcc2) 
                         state = BCC2_GOT;
                     else {
-                        /*printf("bcc2 %x\n", bcc2);
-                        printf("not equal to %x\n", frame.array[i]); */
-                        printf("Error reading Iframe (invalid BCC2)\n");
+                        printf("Error reading Iframe (invalid BCC2)\n\n");
                         return -4;
                     }
                 }
@@ -245,7 +264,7 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
                 if (frame.array[i] == FLAG)
                     state = END;
                 else {
-                    printf("error reading Iframe (wrong header)\n");
+                    printf("Error reading Iframe: wrong header\n\n");
                     return -2;
                 }
                 break;
@@ -257,22 +276,16 @@ u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum) {
     }
 
     dArray data = getData(&frame);
-    /*for(int i = 0; i < frame.used; i++) {
-        printf("%x ", frame.array[i]);
-    } 
-    printf("end of frame\n");*/
     freeArray(&frame);
 
     memcpy(buf, data.array, data.used);
 
-    printf("Getting out of readingIframe\n");
     return data.used;
     
 }
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     //setting up frame components
-    printf("seqnum: %i", seqNum);
     u_int8_t ctrl = SEQNUM_TO_CONTROL(seqNum);
     u_int8_t bcc1 = ADD_TX_AND_BACK ^ ctrl;
     u_int8_t bcc2 = 0;
@@ -297,11 +310,6 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
     stuffFrame(&frame);
     insertArray(&frame, FLAG);
 
-    /*for(int i = 0; i < frame.used; i++) {
-        printf("%x ", frame.array[i]);
-    } 
-    printf("end of frame\n");*/
-
     int ret = write(fd, frame.array, frame.used);
 
     freeArray(&frame);
@@ -314,7 +322,6 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {
-    printf("started llopen");
 
     ll_connectionParameters = connectionParameters;
 
@@ -367,42 +374,29 @@ int llopen(LinkLayer connectionParameters)
 
     seqNum = 0;
 
+    alarmCount = 0;
+
     //if we're receiving
     if (connectionParameters.role == LlRx) {
-        printf("llrx if");
         //wait for frame to arrive
         while (readSUFrame(fd, LlTx) != CTRL_SET) { }
         sendSUFrame(fd, LlTx, CTRL_UA);
     }
     //if we're transmitting
     else if (connectionParameters.role == LlTx) {
-        int nTries = 0;
-        alarmCount = 0;
-        (void)signal(SIGALRM, alarmHandler);
 
-        while (nTries < connectionParameters.nRetransmissions) {
-            printf("sending frame");
+        while (alarmCount < connectionParameters.nRetransmissions) {
             sendSUFrame(fd, LlTx, CTRL_SET);
             
-            while (alarmCount < connectionParameters.timeout) {
-                if (alarmEnabled == FALSE) {
-                alarm(3); // Set alarm to be triggered in 3s
-                alarmEnabled = TRUE;
-                }
-
-                printf("sent frame");
-                if (readSUFrame(fd, LlTx) == CTRL_UA) {
-                    printf("received ack frame");
-                    return 1;
-                }
-                
-             }
-             nTries++;
+            if (readSUFrame(fd, LlTx) == CTRL_UA) {
+                printf("Received acknowledgement frame. Continuing...\n\n");
+                return 1;
+            }
         }
         return -2;
     }
     else {
-        printf("No role could be discerned. Exiting...");
+        printf("No role could be discerned. Exiting...\n");
         exit(1);
     }
 
@@ -414,7 +408,6 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    int nTries = 0;
     alarmCount = 0;
     int old_seqNum = seqNum; //connectionParameters.sequenceNumber;
     int next_seqNum = seqNum ? 0 : 1;
@@ -422,39 +415,33 @@ int llwrite(const unsigned char *buf, int bufSize)
     int bytes;
     u_int8_t response; 
 
-    alarmCount = 0;
-    (void)signal(SIGALRM, alarmHandler);
-
-    while (nTries < ll_connectionParameters.nRetransmissions) {
-        printf("sending iframe\n");
+    while (alarmCount < ll_connectionParameters.nRetransmissions) {
+        
+        printf("Sending Iframe...\n");
         if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
-            printf("Problem sending IFrame (0 bytes sent).\n");
+            printf("Problem sending IFrame (0 bytes sent).\n\n");
             return -2;
         }
 
-        while ((alarmCount < ll_connectionParameters.timeout) && (response != CTRL_RR(next_seqNum))) {
-            if (alarmEnabled == FALSE) {
-                alarm(3); // Set alarm to be triggered in 3s
-                alarmEnabled = TRUE;
-            }
+        while (response != CTRL_RR(next_seqNum)) {
             if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
-                printf("iframe acknowledged correctly\n");
+                printf("Iframe acknowledged correctly. Continuing...\n\n");
                 seqNum = next_seqNum;
                 return bytes;
             }
-            if ((response) == CTRL_REJ(old_seqNum)) {    
+            if ((response) == CTRL_REJ(old_seqNum)) {   
+                printf("Iframe rejected.\n\n"); 
                 alarmCount = 0;
                 break;
             }  
             if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
-                printf("Problem sending IFrame (0 bytes sent).\n");
+                printf("Problem sending IFrame (0 bytes sent).\n\n");
                 return -2;
             }
         }
-        nTries++;
     }
 
-    printf("LLWrite failure (too many tries).\n");
+    printf("LLWrite failure (too many tries).\n\n");
     return -1;
 }
 
@@ -466,31 +453,28 @@ int llread(unsigned char *packet)
     //if read successful, change seqNum
     int bytes;
     
-    printf("before readIframe\n");
+    printf("Reading Iframe...\n");
     while ((bytes = (readIFrame(fd, packet, seqNum))) < 0) {
-        printf("after readiframe: ret = %d\n", bytes);
         switch (bytes) {
             case -1:
-                printf("llread: bytes = -1\n");
                 return -1;
             case -2:
-                printf("llread: bytes = -2\n");
+                printf("Sending rejection SU frame...\n\n");
                 sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
             case -4:
+                printf("Sending rejection SU frame...\n\n");
                 sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
             default: 
-                printf("llread: bytes = %d\n", bytes);
                 break;
         }
     }
 
     //for testing purposes -> sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
-    printf("before send SU frame\n");
     seqNum = seqNum ? 0 : 1;
+    printf("Sending IFrame reception acknowledgement SU frame...\n\n");
     sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
-    printf("after send SU frame, returning from llread\n");
     return bytes;
 }
 
@@ -503,11 +487,10 @@ int llclose(int showStatistics) //using as fd
     
     u_int8_t msg;
 
-    int nTries = 0;
     alarmCount = 0;
-    (void)signal(SIGALRM, alarmHandler);
+    
     if (ll_connectionParameters.role == LlRx) {
-        while (nTries < ll_connectionParameters.timeout) {
+        while (alarmCount < ll_connectionParameters.nRetransmissions) {
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_DC);
                 break;
@@ -516,9 +499,9 @@ int llclose(int showStatistics) //using as fd
     }
     else {
         sendSUFrame(fd, LlTx, CTRL_DC);
-        while (nTries < ll_connectionParameters.timeout) {
+        while (alarmCount < ll_connectionParameters.nRetransmissions) {
             if (alarmEnabled == FALSE) {
-                alarm(3); // Set alarm to be triggered in 3s
+                alarm(ll_connectionParameters.timeout); // Set alarm to be triggered in 3s
                 alarmEnabled = TRUE;
             }
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
@@ -529,7 +512,7 @@ int llclose(int showStatistics) //using as fd
         }
     }
 
-    if (nTries == ll_connectionParameters.timeout) {
+    if (alarmCount == ll_connectionParameters.nRetransmissions) {
         printf("LLclose failed (too many tries).\n");
         return -1;
     }
@@ -537,5 +520,5 @@ int llclose(int showStatistics) //using as fd
     tcsetattr(fd, TCSANOW, &oldtio);
     close(fd);
 
-    return 1;
+    return 0;
 }
