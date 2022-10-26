@@ -415,32 +415,30 @@ int llwrite(const unsigned char *buf, int bufSize)
     int bytes;
     u_int8_t response; 
 
-    while (alarmCount < ll_connectionParameters.nRetransmissions) {
+    while ((alarmCount < ll_connectionParameters.nRetransmissions) && (response != CTRL_RR(next_seqNum))) {
         
         printf("Sending Iframe...\n");
         if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
-            printf("Problem sending IFrame (0 bytes sent).\n\n");
+            printf("Error sending Iframe.\n\n");
             return -2;
         }
 
-        while (response != CTRL_RR(next_seqNum)) {
-            if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
-                printf("Iframe acknowledged correctly. Continuing...\n\n");
-                seqNum = next_seqNum;
-                return bytes;
-            }
-            if ((response) == CTRL_REJ(old_seqNum)) {   
-                printf("Iframe rejected.\n\n"); 
-                alarmCount = 0;
-                break;
-            }  
-            if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
-                printf("Problem sending IFrame (0 bytes sent).\n\n");
-                return -2;
-            }
+        if ((response = readSUFrame(fd, ll_connectionParameters.role)) == CTRL_RR(next_seqNum)) {
+            printf("Iframe acknowledged correctly. Continuing...\n\n");
+            seqNum = next_seqNum;
+            return bytes;
         }
-    }
-
+        else if ((response) == CTRL_REJ(old_seqNum)) {   
+            printf("Iframe rejected.\n\n"); 
+            alarmCount = 0;
+            break;
+        }  
+        /*
+        if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
+            printf("Problem sending IFrame (0 bytes sent).\n\n");
+            return -2;
+        }*/
+    }   
     printf("LLWrite failure (too many tries).\n\n");
     return -1;
 }
