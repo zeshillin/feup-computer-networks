@@ -17,8 +17,6 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 256
-
 extern int fd;
 
 fileStruct file_info;
@@ -51,7 +49,7 @@ int readTLV(unsigned char *packet, TLV *tlv) {
 }
 
 int readControlPacket() {
-    unsigned char packet[BUF_SIZE];
+    unsigned char packet[MAX_PACKSIZE];
     TLV tlv;
     int ret;
     int index = 1; // start reading packet after the control octet
@@ -153,12 +151,13 @@ int writeFileContents(FILE *fp) {
             printf("Error writing to file: read a non-data packet: %x\n", packet[0]);
             continue;
         }
-        else if (packet[1] != ((cur_seqNum++) % 256)) {
+        else if (packet[1] != ((cur_seqNum) % 256)) {
             printf("Error writing to file: wrong sequence number frame.\n");
-            return -1;
+            continue;
         }
  
         else {
+            cur_seqNum++;
             data_bytes = 256 * packet[2] + packet[3];
             if ((res_write = fwrite(packet + 4, 1, data_bytes, fp)) < 0) {
                 printf("Error writing to file: fwrite returned an error.\n");
@@ -197,6 +196,7 @@ int sendFileContents(FILE *fp, long size) {
         packet[1] = (unsigned char) ((cur_seqNum++) % 256); 
         packet[2] = (unsigned char) (read_res / 256); 
         packet[3] = (unsigned char) (read_res % 256);
+        printf("%i\n", cur_seqNum);        
 
         if ((llwrite(packet, read_res + 4)) < 0) {
             memset(packet, 0, sizeof(packet));
@@ -329,7 +329,7 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
         return -1;
     }
     else if (res == -2) {
-        printf("LLOpen failure: too many tries).\n\n");
+        printf("LLOpen failure: too many tries.\n\n");
         return -1;
     }
     printf("Connection estabilished!\n\n");

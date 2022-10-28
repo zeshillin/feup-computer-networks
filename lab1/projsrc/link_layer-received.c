@@ -356,7 +356,6 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-
     int old_seqNum = seqNum; //connectionParameters.sequenceNumber;
     int next_seqNum = seqNum ? 0 : 1;
     
@@ -379,12 +378,10 @@ int llwrite(const unsigned char *buf, int bufSize)
             return bytes;
         }
         else if (response == CTRL_REJ(old_seqNum)) {   
-            printf("Iframe rejected (wrong BCC2).\n\n"); 
-            //seqNum = next_seqNum;
+            printf("Iframe rejected (wrong BCC2).\n\n");
             nTries = 0;
             continue;
         }
-       
         else if (response == 0) {
             printf("No SUframe received (timeout).\n\n");
             continue; 
