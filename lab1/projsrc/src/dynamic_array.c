@@ -30,22 +30,29 @@ void insertArray(dArray *a, const u_int8_t element) {
 
 void stuffFrame(dArray *a) { 
     u_int8_t byte;
-
-    //skip over first and last byte which are flags
-    for(int i = 1; i < a->used - 1; i++) {
+    int i = 1;
+    int escaped = 0;
+    //skip over first byte which is a flag
+    for(i = 1; i < a->used; i++) {
         byte = getArrayValue(a, i);
-        if(byte == FLAG || byte == ESC)
-            escapeByte(a, i, byte);
+        if(byte == FLAG || byte == ESC) {
+          escapeByte(a, i, byte);
+          escaped++;
+        }
     }
 }
 
 void destuffFrame(dArray *a) {
     u_int8_t byte;
-
-    for (int i = 1; i < a->used; i++) {   
+    int i = 1;
+    int descaped = 0;
+    // skip over first and last byte which are flags
+    for (i = 1; i < a->used - 1; i++) {   
         byte = getArrayValue(a, i);
-        if (byte == ESC) 
+        if (byte == ESC) {
             descapeByte(a, i);
+            descaped++;
+        }
     }
 }
 

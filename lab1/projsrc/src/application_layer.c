@@ -132,52 +132,59 @@ int sendEndPacket () {
 }
 
 int writeFileContents(FILE *fp) {
-    u_int8_t packet[MAX_PACKSIZE] = {0};
+    u_int8_t* packet = malloc(MAX_PACKSIZE);
 
     int read_size;
     int data_bytes;
     int res_write;
 
     while (1) {
-        if ((read_size = llread((unsigned char *) packet)) < 0) 
-            return -1;
-        if (packet[0] == CF_END) {
+        
+        if ((read_size = llread(packet)) < 0) 
+            continue;
+        else if (packet[0] == CF_END) {
             break;
         }
-        if (packet[0] != CF_DATA) {
-             printf("Error writing to file: read a non-data packet: %x\n", packet[0]);
-            return -1;
+        else if (packet[0] != CF_DATA) {
+            printf("Error writing to file: read a non-data packet: %x\n", packet[0]);
+            continue;
         }
         else if (packet[1] != ((cur_seqNum++) % 256)) {
             printf("Error writing to file: wrong sequence number frame.\n");
             return -1;
         }
  
-        data_bytes = 256 * packet[2] + packet[3];
-        if ((res_write = fwrite(packet + 4, 1, data_bytes, fp)) < 0) {
-            printf("Error writing to file: fwrite returned an error.\n");
-            return -1;
+        else {
+            data_bytes = 256 * packet[2] + packet[3];
+            if ((res_write = fwrite(packet + 4, 1, data_bytes, fp)) < 0) {
+                printf("Error writing to file: fwrite returned an error.\n");
+                return -1;
+            }
         }
 
-        memset(packet, 0, MAX_PACKSIZE);
-        
+        memset(packet, 0, MAX_PACKSIZE);     
     }
 
     printf("Finished file.\n");
     appLayer_exit();
     return 0;
 }
+
 int sendFileContents(FILE *fp, long size) {
     unsigned char packet[MAX_PACKSIZE];
 
-    int bytes = 0;
+    long file_to_go = size;
     int read_res;
-    int write_res;
+    int content_size = MAX_PACKSIZE - 4;
 
-    while ((long int) bytes < size) {
-        
-        // insert as much file content into packet as possible (4 bytes will be used for other packet camps) 
-        if ((read_res = fread(packet + 4, 1 , MAX_PACKSIZE - 4, fp)) < 0) {
+    while (file_to_go > 0) {
+        printf("file to go: %ld\n", file_to_go);
+        if (file_to_go < MAX_PACKSIZE - 4) {
+            content_size = file_to_go;
+        }
+
+        // insert as much file content into packet as possible (4 bytes will be used for other packet fields) 
+        if ((read_res = fread(packet + 4, 1 , content_size, fp)) < 0) {
             printf("FRead error while sending file contents. \n");
             return -1;
         }
@@ -187,11 +194,14 @@ int sendFileContents(FILE *fp, long size) {
         packet[2] = (unsigned char) (read_res / 256); 
         packet[3] = (unsigned char) (read_res % 256);
 
-        if ((write_res = llwrite(packet, read_res + 4)) < 0)
+        if ((llwrite(packet, read_res + 4)) < 0) {
+            memset(packet, 0, sizeof(packet));
             return -1;
-
-        bytes += read_res;
-        memset(packet, 0, sizeof(packet));
+        }
+        else {
+            file_to_go -= read_res;
+            memset(packet, 0, sizeof(packet));
+        }
 
     }
 
@@ -282,11 +292,8 @@ int sendFile(char* path) {
     if ((end_res = sendEndPacket()) < 0) {// send end ctrl packet
         return -1;
     }
-    else if (end_res == 0) {
-        fclose(fp);
-        appLayer_exit();
-    }
 
+    fclose(fp);
     appLayer_exit();
     return 0;
 }

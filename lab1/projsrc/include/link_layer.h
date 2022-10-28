@@ -32,7 +32,7 @@ typedef struct
 u_int8_t readSUFrame(int fd, LinkLayerRole role);
 int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg);
 
-u_int8_t readIFrame(int fd, unsigned char *buf, int seqNum);
+int readIFrame(int fd, unsigned char *buf, int seqNum);
 int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum);
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
