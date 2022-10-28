@@ -43,6 +43,7 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
     while (state != END)  
     {  
         if((bytes = read(fd, &read_buf, 1)) < 1) {
+            printf("Timed out. Retrying...\n");
             return 0;
         }
 
@@ -91,7 +92,7 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 }
 int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
 
-    printf("sending SU Frame...\n");
+    //printf("sending SU Frame...\n");
     u_int8_t frame[5];
     u_int8_t address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
     u_int8_t bcc = address ^ msg;
@@ -122,6 +123,7 @@ int readIFrame(int fd, unsigned char *buf, int seqNum) {
     while (state != END) {
         
         if((bytes = read(fd, &read_buf, 1)) < 1) {
+            printf("Timed out. Retrying...\n");
             freeArray(&frame);
             return -1;
         }
@@ -377,9 +379,13 @@ int llwrite(const unsigned char *buf, int bufSize)
             return bytes;
         }
         else if (response == CTRL_REJ(old_seqNum)) {   
-            printf("Iframe rejected.\n\n"); 
+            printf("Iframe rejected (repeated sequence number).\n\n"); 
             nTries = 0;
             continue;
+        }
+        else if (response == 0) {
+            printf("No Iframe received (timeout).\n\n");
+            continue; 
         }
     }
     printf("LLWrite failure (too many tries).\n\n");

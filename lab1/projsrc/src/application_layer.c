@@ -314,22 +314,22 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
     layer.timeout = timeout;
     
     if ((strcmp(role, "tx")) == 0) {
-        printf("Role estabilished: Transmitter\n");
+        printf("Role estabilished: Transmitter\n\n");
         layer.role = LlTx;
     } 
     else {
-        printf("Role estabilished: Receiver\n");
+        printf("Role estabilished: Receiver\n\n");
         layer.role = LlRx;
     }
 
     printf("Estabilishing connection with llopen...\n\n");
     int res = llopen(layer);
     if (res == -1) {
-        printf("LLOpen failure: error opening file descriptor.\n");
+        printf("LLOpen failure: error opening file descriptor.\n\n");
         return -1;
     }
     else if (res == -2) {
-        printf("LLOpen failure (too many tries)\n");
+        printf("LLOpen failure: too many tries).\n\n");
         return -1;
     }
     printf("Connection estabilished!\n\n");
