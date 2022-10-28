@@ -167,7 +167,7 @@ int readIFrame(int fd, unsigned char *buf, int seqNum) {
                     state = ADDRESS_GOT;
                 else {
                     printf("Error reading Iframe (wrong header)\n\n");
-                    return -3;
+                    return -2;
                 }
                 break;
             case ADDRESS_GOT:
@@ -176,11 +176,11 @@ int readIFrame(int fd, unsigned char *buf, int seqNum) {
                 
                 else if (frame.array[i] == next_ctrl) {
                     printf("Error reading Iframe (wrong sequence number)\n\n");
-                    return -2;
+                    return -3;
                 }
                 else {
                     printf("Error reading Iframe (wrong header)\n\n");
-                    return -3;
+                    return -2;
                 }
                 break;
             case CTRL_GOT:
@@ -451,7 +451,7 @@ int llclose(int showStatistics) //using as fd
         }
     }
 
-    if (nTries == ll_connectionParameters.nRetransmissions) {
+    if (nTries >= ll_connectionParameters.nRetransmissions) {
         printf("LLclose failed (too many tries).\n");
         return -1;
     }
