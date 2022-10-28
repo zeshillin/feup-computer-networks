@@ -53,11 +53,9 @@ int main(int argc, char *argv[])
         res = readFile();
         if  (res == 0) {
             printf("File read is empty. \n");
-            return 0;
         }
         else if (res == -1) {
             printf("File read error. \n");
-            return -1;
         }
     }
     else if ((strcmp(role, "tx")) == 0) {
@@ -66,16 +64,14 @@ int main(int argc, char *argv[])
         res = sendFile(filename);
         if (res == -1) {
             printf("File send error. \n");
-            return -1;
         }
     }
     else {
         printf("No discernible role in arguments. \n");
-        return -1;
     }
 
     appLayer_exit();
     printf("Program ended. \n");
 
-    return 0;
+    return res;
 }

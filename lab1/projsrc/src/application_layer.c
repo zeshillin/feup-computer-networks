@@ -81,37 +81,41 @@ int readControlPacket() {
     return 0;
 }
 int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
-    int bufSize = 1; // control field
+
+    int packSize = 1; // control field
     // calculate full byte length of packet we'll need to send every TLV
     for (int i = 0; i < tlvNum; i++) 
-        bufSize += 2 + tlvs[i].L;
+        packSize += 2 + tlvs[i].L;
 
-    unsigned char *buf = malloc(bufSize); 
-    buf[0] = cf;
+    unsigned char *packet = malloc(packSize); 
+    packet[0] = cf; 
     int idx = 1;
 
     for (int i = 0; i < tlvNum; i++) {
-        buf[idx++] = tlvs[i].T;
-        buf[idx++] = tlvs[i].L;
-        memcpy(buf + idx, tlvs[i].V, tlvs[i].L);
+        packet[idx++] = tlvs[i].T;
+        packet[idx++] = tlvs[i].L;
+        memcpy(packet + idx, tlvs[i].V, tlvs[i].L);
         idx += tlvs[i].L; 
     }
 
-    int res = llwrite(buf, idx);
+    // write control packet
+    int res = llwrite(packet, idx);
     if (res < 0) {
-        free(buf);
+        printf("Error sending control packet: control packet was empty.\n");
+        free(packet);
         return -1;
     }
     else if (res < idx) {
-        printf("Error sending control packet (TLV sizes didn't match llwrite return).\n");
-        free(buf);
-        return -1;
+        printf("Error sending control packet: TLV sizes didn't match llwrite return.\n");
+        free(packet);
+        return -1;   
     }
-    sPacket.packet_size = bufSize;
-    sPacket.packet = malloc(bufSize);
-    memcpy(sPacket.packet, buf, bufSize);
-
-    free(buf);
+    
+    sPacket.packet_size = packSize;
+    sPacket.packet = malloc(packSize);
+    memcpy(sPacket.packet, packet, packSize);
+    
+    free(packet);
     return res;
 }
 int sendEndPacket () {
@@ -216,6 +220,7 @@ int readFile() {
         return -1;
     }
 
+    // craft new filename 
     char* new_filename = malloc(file_info.filename_size + 9);
 
     char* token = strtok(file_info.filename, ".");
@@ -224,17 +229,16 @@ int readFile() {
     strcat(new_filename, file_info.filename + (strlen(token) + 1));
     
     FILE* fp;
-
     if ((fp = fopen(new_filename, "w")) == NULL) {
         printf("Error opening file (fopen error). \n");
         return -1;
     }
+    free(new_filename);
 
+    // write to file received packets sent by transmitter
     int res = writeFileContents(fp);
 
     fclose(fp);
-
-    free(new_filename);
     return res;
 }
 int sendFile(char* path) {
@@ -244,7 +248,6 @@ int sendFile(char* path) {
     // get filename & filename size
     const char *fname = basename(path); // use basename() to get a pointer to the base filename
     u_int8_t fname_sz;
-
     // 256 is the maximum size a file (max of pathname is 4096 in C-lang)
     if ((fname_sz = strnlen(fname, 256)) == 256) {
         printf("Error: Filename is too long.\n"); 
@@ -274,13 +277,14 @@ int sendFile(char* path) {
     filename.V = malloc(fname_sz);
     memcpy(filename.V, fname, fname_sz);
 
+    // send TLVs in starting packet
     TLV tlvs[] = {filesz, filename};
-    if (sendControlPacket(tlvs, 2, CF_START) < 0) // send start ctrl packet
+    if (sendControlPacket(tlvs, 2, CF_START) < 0) 
         return -1; 
-    
     free(filesz.V);
     free(filename.V);
 
+    // send file contents
     int res = sendFileContents(fp, fsize);
     if (res < 0) {
         printf("Error sending file contents.\n");
@@ -294,7 +298,6 @@ int sendFile(char* path) {
     }
 
     fclose(fp);
-    appLayer_exit();
     return 0;
 }
 
@@ -311,7 +314,7 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
     layer.timeout = timeout;
     
     if ((strcmp(role, "tx")) == 0) {
-        printf("Role estabilished: Transmissor\n");
+        printf("Role estabilished: Transmitter\n");
         layer.role = LlTx;
     } 
     else {
