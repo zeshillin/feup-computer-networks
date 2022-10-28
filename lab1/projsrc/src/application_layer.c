@@ -182,7 +182,7 @@ int sendFileContents(FILE *fp, long size) {
     int content_size = MAX_PACKSIZE - 4;
 
     while (file_to_go > 0) {
-        printf("file to go: %ld\n", file_to_go);
+        //printf("file to go: %ld\n", file_to_go);
         if (file_to_go < MAX_PACKSIZE - 4) {
             content_size = file_to_go;
         }

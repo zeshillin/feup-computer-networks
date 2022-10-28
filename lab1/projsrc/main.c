@@ -48,22 +48,22 @@ int main(int argc, char *argv[])
     int res;
 
     if ((strcmp(role, "rx")) == 0) {
-        printf("Receiving file...\n");
+        printf("Receiving file...\n\n");
 
         res = readFile();
         if  (res == 0) {
-            printf("File read is empty. \n");
+            printf("File read is empty. \n\n");
         }
         else if (res == -1) {
-            printf("File read error. \n");
+            printf("File read error. \n\n");
         }
     }
     else if ((strcmp(role, "tx")) == 0) {
-        printf("Sending file...\n");
+        printf("Sending file...\n\n");
         
         res = sendFile(filename);
         if (res == -1) {
-            printf("File send error. \n");
+            printf("File send error. \n\n");
         }
     }
     else {

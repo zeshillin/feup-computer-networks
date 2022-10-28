@@ -31,25 +31,6 @@ int seqNum;
 //Frame MISC
 typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END } state;
 
-// Alarm MISC
-int alarmEnabled = FALSE;
-int alarmCount = 0;
-bool timeExceeded = FALSE;
-
-// Alarm function handler
-void alarmHandler(int signal)
-{   
-    timeExceeded = TRUE;
-    alarmEnabled = FALSE;
-    alarmCount++;
-
-    if (ll_connectionParameters.role == LlTx) {
-        if (alarmCount == ll_connectionParameters.nRetransmissions)
-            printf("Too many retries: %i\n\n", ll_connectionParameters.nRetransmissions);
-        else
-            printf("Retry nº: #%d\n", alarmCount);
-    }
-}
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 
@@ -58,8 +39,6 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 
     u_int8_t read_buf;
     int bytes;
-
-    timeExceeded = FALSE;
 
     while (state != END)  
     {  
@@ -112,6 +91,7 @@ u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 }
 int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
 
+    printf("sending SU Frame...\n");
     u_int8_t frame[5];
     u_int8_t address = (role == LlRx) ? ADD_RX_AND_BACK : ADD_TX_AND_BACK;
     u_int8_t bcc = address ^ msg;
@@ -139,8 +119,6 @@ int readIFrame(int fd, unsigned char *buf, int seqNum) {
     u_int8_t read_buf;
     int bytes;
 
-    timeExceeded = FALSE;
-
     while (state != END) {
         
         if((bytes = read(fd, &read_buf, 1)) < 1) {
@@ -167,7 +145,7 @@ int readIFrame(int fd, unsigned char *buf, int seqNum) {
     }
 
     destuffFrame(&frame);
-    printf("read %i\n", frame.used);
+    //printf("read %i\n", frame.used);
     u_int8_t bcc2 = generateBCC2(&frame);
     state = START;
 
@@ -342,8 +320,7 @@ int llopen(LinkLayer connectionParameters)
     }
 
     seqNum = 0;
-
-    alarmCount = 0;
+    int nTries = 0;
 
     //if we're receiving
     if (connectionParameters.role == LlRx) {
@@ -354,7 +331,7 @@ int llopen(LinkLayer connectionParameters)
     //if we're transmitting
     else if (connectionParameters.role == LlTx) {
 
-        while (alarmCount < connectionParameters.nRetransmissions) {
+        while (nTries++ < connectionParameters.nRetransmissions) {
             sendSUFrame(fd, LlTx, CTRL_SET);
             
             if (readSUFrame(fd, LlTx) == CTRL_UA) {
@@ -366,7 +343,7 @@ int llopen(LinkLayer connectionParameters)
     }
     else {
         printf("No role could be discerned. Exiting...\n");
-        exit(1);
+        return -1;
     }
 
     return 0;
@@ -385,17 +362,17 @@ int llwrite(const unsigned char *buf, int bufSize)
     u_int8_t response; 
 
     for (int nTries = 0; nTries < ll_connectionParameters.nRetransmissions; nTries++) {
-        printf("Sending Iframe...\n");
+        //printf("Sending Iframe...\n");
         if ((bytes = sendIFrame(fd, buf, bufSize, old_seqNum)) < 0) {
             printf("Error sending Iframe.\n\n");
             continue;
         }
-        printf("After sent iFrame\n");
+
         response = readSUFrame(fd, ll_connectionParameters.role);
-        printf("response: %d\n", response);
+        //printf("response: %d\n", response);
 
         if (response == CTRL_RR(next_seqNum)) {
-            printf("Iframe acknowledged correctly. Continuing...\n\n");
+            //printf("Iframe acknowledged correctly. Continuing...\n\n");
             seqNum = next_seqNum;
             return bytes;
         }
@@ -416,13 +393,10 @@ int llread(unsigned char *packet)
 {
     //if read successful, change seqNum
     int bytes;
-    int nTries = 0;
 
     //printf("Reading Iframe...\n");
-    printf("before readIframe\n");
 
     bytes = readIFrame(fd, packet, seqNum);
-    printf("after readIframe\n");
     
     if (bytes < 0) {
         switch (bytes) {
@@ -439,23 +413,21 @@ int llread(unsigned char *packet)
         seqNum = seqNum ? 0 : 1;
         //printf("Sending IFrame reception acknowledgement SU frame...\n\n");
         sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
-        return bytes;
     }
+    return bytes;
 }
 
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
 int llclose(int showStatistics) //using as fd
-{
-    printf("Using LLClose... \n");
-    
+{    
     u_int8_t msg;
 
-    alarmCount = 0;
+    int nTries = 0;
     
     if (ll_connectionParameters.role == LlRx) {
-        while (alarmCount < ll_connectionParameters.nRetransmissions) {
+        while (nTries < ll_connectionParameters.nRetransmissions) {
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_DC);
                 break;
@@ -463,12 +435,8 @@ int llclose(int showStatistics) //using as fd
         }
     }
     else {
-        sendSUFrame(fd, LlTx, CTRL_DC);
-        while (alarmCount < ll_connectionParameters.nRetransmissions) {
-            if (alarmEnabled == FALSE) {
-                alarm(ll_connectionParameters.timeout); // Set alarm to be triggered in 3s
-                alarmEnabled = TRUE;
-            }
+        while (nTries++ < ll_connectionParameters.nRetransmissions) {
+            sendSUFrame(fd, LlTx, CTRL_DC);
             if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
                 sendSUFrame(fd, LlTx, CTRL_UA);
                 break;
@@ -477,7 +445,7 @@ int llclose(int showStatistics) //using as fd
         }
     }
 
-    if (alarmCount == ll_connectionParameters.nRetransmissions) {
+    if (nTries == ll_connectionParameters.nRetransmissions) {
         printf("LLclose failed (too many tries).\n");
         return -1;
     }
