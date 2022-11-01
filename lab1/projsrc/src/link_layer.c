@@ -15,22 +15,20 @@
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
-#define BUF_SIZE 256
-#define Rx = 0
-#define Tx = 1
-
-//volatile int STOP = FALSE;
 
 struct termios oldtio;
 struct termios newtio;
 LinkLayer ll_connectionParameters;
+
+
+int numIFrames;
+int numSUFrames;
 
 int fd;
 int seqNum;
 
 //Frame MISC
 typedef enum { START, FLAG_GOT, ADDRESS_GOT, CTRL_GOT, BCC1_GOT, DATA_GOT, BCC2_GOT, END } state;
-
 
 u_int8_t readSUFrame(int fd, LinkLayerRole role) {
 
@@ -103,6 +101,7 @@ int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg) {
     frame[3] = bcc;
     frame[4] = FLAG;
 
+    numSUFrames++;
     return write(fd, frame, 5);
 }
 
@@ -263,6 +262,8 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 
     freeArray(&frame);
 
+    numIFrames++;
+
     return ret;
 }
 
@@ -271,7 +272,8 @@ int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum) {
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {
-
+    numIFrames = 0;
+    numSUFrames = 0;
     ll_connectionParameters = connectionParameters;
 
     // Program usage: Uses either COM1 or COM2
@@ -356,7 +358,7 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    usleep(100000);
+
     int old_seqNum = seqNum; //connectionParameters.sequenceNumber;
     int next_seqNum = seqNum ? 0 : 1;
     
@@ -379,12 +381,14 @@ int llwrite(const unsigned char *buf, int bufSize)
             return bytes;
         }
         else if (response == CTRL_REJ(old_seqNum)) {   
-            printf("Iframe rejected (repeated sequence number).\n\n"); 
+            printf("Iframe rejected (wrong BCC2).\n\n"); 
+            //seqNum = next_seqNum;
             nTries = 0;
             continue;
         }
+       
         else if (response == 0) {
-            printf("No Iframe received (timeout).\n\n");
+            printf("No SUframe received (timeout).\n\n");
             continue; 
         }
     }
@@ -406,8 +410,11 @@ int llread(unsigned char *packet)
     
     if (bytes < 0) {
         switch (bytes) {
-            case -2:
             case -3:
+                printf("Sending same seqNum acknowledgement SU frame...\n\n");
+                sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
+                break;
+            case -4:
                 printf("Sending rejection SU frame...\n\n");
                 sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
                 break;
