@@ -23,11 +23,11 @@
 
 <br>
 
-# 5. Logical Link Protocol
+# 5. Data Link Protocol
 
 <br>
 
-# 6. Apllication protocol
+# 6. Application protocol
 
 <br>
 
