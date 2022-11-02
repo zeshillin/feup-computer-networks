@@ -45,7 +45,7 @@ where:
 ## Application Layer
 The application layer stores every function and usable without any regard for who is using it, be it is the receiver or the transmitter. Important parameters for the application layer to know about would be the file descriptor and the role it is currently executing, however, these are both specified in *main.c* and, as such, there is no need for them.
 
-### *application_layer.h*
+### *application_layer.h & application_layer.c*
 
 #
     typedef struct {
@@ -81,6 +81,12 @@ A struct is used to store the TLV (Type, Length, Value) section of a control pac
 The *T* field represents the Type parameter (0 – file size, 1 – file name).<br>
 The *L* field represents the Length parameter (the size of the V field in octets).
 The *V* field contains the data to be sent (file size or file name).
+
+#
+
+    int applicationLayer(const char *serialPort, const char *role, int baudRate, int nTries, int timeout, const char *filename)
+
+Effectively starts and estabilishes the connection between transmitter and receiver and defines the roles in the current context. Uses link layer's **llopen**
 
 
 <br>
