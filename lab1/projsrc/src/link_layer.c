@@ -20,7 +20,6 @@ struct termios oldtio;
 struct termios newtio;
 LinkLayer ll_connectionParameters;
 
-
 int numIFrames;
 int numSUFrames;
 

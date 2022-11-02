@@ -14,6 +14,8 @@
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
+int numDataPackets; 
+
 extern int fd;
 
 fileStruct file_info;
@@ -182,7 +184,6 @@ int sendFileContents(FILE *fp, long size) {
         if (file_to_go < MAX_PACKSIZE - 4) {
             content_size = file_to_go;
         }
-
         // insert as much file content into packet as possible (4 bytes will be used for other packet fields) 
         if ((read_res = fread(packet + 4, 1 , content_size, fp)) < 0) {
             printf("FRead error while sending file contents. \n");
@@ -201,6 +202,7 @@ int sendFileContents(FILE *fp, long size) {
         }
         else {
             file_to_go -= read_res;
+            numDataPackets++;
             memset(packet, 0, sizeof(packet));
         }
 
