@@ -38,13 +38,50 @@ where:
 - *role* is the role (*{rx, tx}* where *rx* is the receiver, *tx* is the transmitter)
 - *[filepath] is the file-to-send's path (only needed if initializing the program as transmitter)
 
-
-    
-
-
 <br>
 
 # 3. Code Structure
+
+## Application Layer
+The application layer stores every function and usable without any regard for who is using it, be it is the receiver or the transmitter. Important parameters for the application layer to know about would be the file descriptor and the role it is currently executing, however, these are both specified in *main.c* and, as such, there is no need for them.
+
+### *application_layer.h*
+
+#
+    typedef struct {
+        char* filename;
+        u_int8_t filename_size;
+        long filesize;
+    } fileStruct;
+
+A struct is used to store the file we're sending and to make a new name in the receiver end.<br>
+The *filename* field is a character buffer that contains the file's (relative) path.<br>
+The *filename_size* field contains the size of the *filename* buffer.<br>
+The *filesize* field contains the size of the file.
+
+#
+
+    typedef struct {
+        unsigned char* packet;
+        int packet_size;
+    } startPacket;
+A struct is used to store the starting control packet sent to then send it again as an end packet at the end of the program's data transfer.<br>
+The *packet* buffer stores the packet's contents.<br>
+The *packet_size* specifies the *packet* buffer size.
+
+#
+
+    typedef struct {
+        u_int8_t T;
+        u_int8_t L;
+        u_int8_t* V;
+    } TLV;
+
+A struct is used to store the TLV (Type, Length, Value) section of a control packet.<br>
+The *T* field represents the Type parameter (0 – file size, 1 – file name).<br>
+The *L* field represents the Length parameter (the size of the V field in octets).
+The *V* field contains the data to be sent (file size or file name).
+
 
 <br>
 
