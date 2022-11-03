@@ -87,8 +87,113 @@ The `V` field contains the data to be sent (file size or file name).
 
     int applicationLayer(const char* serialPort, const char *role, int baudRate, int nTries, int timeout, const char *filename)
 
-Effectively starts and estabilishes the connection between transmitter and receiver and defines the roles in the current context. Uses link layer's ``llopen``
+Effectively starts and estabilishes the connection between transmitter and receiver and defines the roles in the current context. Uses link layer's `llopen`
 
+#
+
+    int readFile()
+
+Reads the file sent through the serial port. It gets its general information first by calling `readControlPacket`, followed by the file's contents by calling `writeFileContents`.
+
+#
+
+    int readControlPacket()
+
+Reads the file's general information. Calls `readTLV` for each group of parameters in the TLV format, with the index at the start of the next group and a reference to the `tlv` struct.
+
+#
+
+    int readTLV()
+
+Reads one group of parameters in the TLV format. Each parameter is stored in the appropriate variable of the `tlv` struct.
+
+#
+
+    int writeFileContents(FILE *fp)
+
+Calls `llread` to read the file's contents, and writes them to `fp`.
+
+#
+
+    int sendFile(char* path)
+
+Sends the file, obtained by following `path`, through the serial port. It starts with its general information first by calling `sendControlPacket`, followed by the file's contents by calling `sendFileContents`. The end control packet is sent through `sendEndPacket`.
+
+#
+
+    int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf)
+
+Sends the file's general information. Reserves space in memory depending on `tlvNum`, creates the packet and then calls `llwrite` to send it.
+
+#
+
+    int sendFileContents(FILE *fp, long size)
+
+Calls `llwrite`to send the file `fp` of size `size` through the serial port.
+
+#
+
+    int sendEndPacket()
+
+Sends the file's end packet to mark the end of the trasmission.
+
+#
+
+    int appLayer_exit()
+
+Ends the application by calling `llclose` to close the serial port connection and freeing any remaining memory used.
+
+## 3.2 Data Link Layer
+
+The Data Link Layer is the lower level component of the program, which is responsible for communicating with the serial port, established in the `link_layer.c` file. A dynamic array implementation is also defined in `dynamic_array.c`, which includes functions for stuffing and destuffing a frame.
+
+#
+
+    int llopen(LinkLayer connectionParameters)
+
+Opens the connection to the serial port, making use of the `connectionParameters` struct.
+
+#
+
+    int llwrite(const unsigned char *buf, int bufSize)
+
+Writes frame in `buf` with size `bufSize` to the port given in the global variable `fd`.
+
+#
+
+    int llread(unsigned char *packet)
+
+Reads frame to `buf` from the port given in the global variable `fd`.
+
+#
+    
+    int llclose(int showStatistics)
+
+Closes the connection to the serial port.
+
+# 
+
+    int sendSUFrame(int fd, LinkLayerRole role, u_int8_t msg)
+
+Sends a supervisory unnumbered frame of control field `msg` to the port given by the variable `fd`, given the struct `role` that defines the role of the function caller (sender or receiver).
+
+#   
+
+    int sendIFrame(int fd, const unsigned char *buf, int length, int seqNum)
+
+Sends an information frame from `buf` to the port given by the global variable `fd`, of size `length` and sequence number `seqNum`.
+
+#
+
+    u_int8_t readSUFrame(int fd, LinkLayerRole role)
+
+Reads a supervisory unnumbered frame from the port given by the variable `fd`, given the struct `role` that defines the role of the function caller (sender or receiver).
+
+#
+
+    int readIFrame(int fd, unsigned char *buf, int seqNum)
+
+Reads an information frame to `buf` from the port given by the variable `fd`, of sequence number `seqNum`.
 
 <br>
 
