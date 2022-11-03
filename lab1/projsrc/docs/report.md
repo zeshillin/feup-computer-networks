@@ -31,21 +31,21 @@
 ## 2.3 Main 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Simple interface that runs transmitter or receiver code depending on the role given during the program execution: 
     
-&nbsp;&nbsp;&nbsp;&nbsp;*serialport role [filepath]*  
+&nbsp;&nbsp;&nbsp;&nbsp;`serialport role [filepath]`  
 
 where:
-- *serialport* is the port's path (e.g.: dev/ttyS01)
-- *role* is the role (*{rx, tx}* where *rx* is the receiver, *tx* is the transmitter)
-- *[filepath] is the file-to-send's path (only needed if initializing the program as transmitter)
+- `serialport` is the port's path (e.g.: dev/ttyS01)
+- `role` is the role (`{rx, tx}` where `rx` is the receiver, `tx` is the transmitter)
+- `[filepath] is the file-to-send's path (only needed if initializing the program as transmitter)
 
 <br>
 
 # 3. Code Structure
 
 ## 3.1 Application Layer
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The application layer stores every function and usable without any regard for who is using it, be it is the receiver or the transmitter. Important parameters for the application layer to know about would be the file descriptor and the role it is currently executing, however, these are both specified in *main.c* and, as such, there is no need for them.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The application layer stores every function and usable without any regard for who is using it, be it is the receiver or the transmitter. Important parameters for the application layer to know about would be the file descriptor and the role it is currently executing, however, these are both specified in `main.c` and, as such, there is no need for them.
 
-### *application_layer.h & application_layer.c*
+### `application_layer.h & application_layer.c`
 
 #
     typedef struct {
@@ -55,20 +55,20 @@ where:
     } fileStruct;
 
 A struct is used to store the file we're sending and to make a new name in the receiver end.<br>
-The *filename* field is a character buffer that contains the file's (relative) path.<br>
-The *filename_size* field contains the size of the *filename* buffer.<br>
-The *filesize* field contains the size of the file.
+The `filename` field is a character buffer that contains the file's (relative) path.<br>
+The `filename_size` field contains the size of the `filename` buffer.<br>
+The `filesize` field contains the size of the file.
 
 #
 
     typedef struct {
-        unsigned char* packet;
+        unsigned char` packet;
         int packet_size;
     } startPacket;
 
 A struct is used to store the starting control packet sent to then send it again as an end packet at the end of the program's data transfer.<br>
-The *packet* buffer stores the packet's contents.<br>
-The *packet_size* specifies the *packet* buffer size.
+The `packet` buffer stores the packet's contents.<br>
+The `packet_size` specifies the `packet` buffer size.
 
 #
 
@@ -79,15 +79,15 @@ The *packet_size* specifies the *packet* buffer size.
     } TLV;
 
 A struct is used to store the TLV (Type, Length, Value) section of a control packet.<br>
-The *T* field represents the Type parameter (0 – file size, 1 – file name).<br>
-The *L* field represents the Length parameter (the size of the V field in octets).
-The *V* field contains the data to be sent (file size or file name).
+The `T` field represents the Type parameter (0 – file size, 1 – file name).<br>
+The `L` field represents the Length parameter (the size of the V field in octets).
+The `V` field contains the data to be sent (file size or file name).
 
 #
 
-    int applicationLayer(const char *serialPort, const char *role, int baudRate, int nTries, int timeout, const char *filename)
+    int applicationLayer(const char* serialPort, const char *role, int baudRate, int nTries, int timeout, const char *filename)
 
-Effectively starts and estabilishes the connection between transmitter and receiver and defines the roles in the current context. Uses link layer's **llopen**
+Effectively starts and estabilishes the connection between transmitter and receiver and defines the roles in the current context. Uses link layer's ``llopen``
 
 
 <br>
@@ -121,15 +121,15 @@ The two main use cases are sending a file or receiving a file. The flow of these
 - The file is closed, followed by the application in `appLayer_exit`, which calls `llclose`.
 
 # 5. Data Link Protocol
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The data link layer has 4 main functions: *llopen* (used for estabilishing connection at the start of the data transfer), *llwrite* used to send information frames, consequently, *llread* to read information frames and, finally, *llclose* to end the connection.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The data link layer has 4 main functions: `llopen` (used for estabilishing connection at the start of the data transfer), `llwrite` used to send information frames, consequently, `llread` to read information frames and, finally, `llclose` to end the connection.
 
 
-## 5.1 - **llopen**
+## 5.1 - ``llopen``
     int llopen(LinkLayer connectionParameters)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Before any information is exchanged between the receiver and the transmitter, *llopen* verifies that the serial port is open and available for usage. In order to use timeouts on read and write functions, a *termios* structure is also used with values VTIME and VMIN set to *connectionParameters.timeout* * 10 and 0 respectively.<br>
-*connectionParameters* that contains important information used for the function's protocol, that goes as follows:
-- The transmitter emits a SET frame and waits for the receiver's response. Once an acknowledgement frame (UA frame) sent by the receiver is received, the connection has been correctly estabilished and *llopen* closes. If no acknowledgement frame is received by the transmitter during a set timeout period (parameter defined by *connectionParameters*'s *timeout* value), it retries the protocol, sending a SET frame and waiting for an UA frame again. If this does not happen after the number of retries set by the *connectionParameters*'s *nRetransmissions* value, *llopen* ends with an error number, and the program closes.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Before any information is exchanged between the receiver and the transmitter, `llopen` verifies that the serial port is open and available for usage. In order to use timeouts on read and write functions, a `termios` structure is also used with values VTIME and VMIN set to `connectionParameters.timeout` * 10 and 0 respectively.<br>
+`connectionParameters` that contains important information used for the function's protocol, that goes as follows:
+- The transmitter emits a SET frame and waits for the receiver's response. Once an acknowledgement frame (UA frame) sent by the receiver is received, the connection has been correctly estabilished and `llopen` closes. If no acknowledgement frame is received by the transmitter during a set timeout period (parameter defined by `connectionParameters`'s `timeout` value), it retries the protocol, sending a SET frame and waiting for an UA frame again. If this does not happen after the number of retries set by the `connectionParameters`'s `nRetransmissions` value, `llopen` ends with an error number, and the program closes.
 
         if (connectionParameters.role == LlTx) {
 
@@ -144,7 +144,7 @@ The two main use cases are sending a file or receiving a file. The flow of these
             return -2;
         }
 
-- The receiver waits for a SET frame reception amd acknowledges it by sending a UA frame back.
+- The receiver waits for a SET frame reception and acknowledges it by sending a UA frame back.
     
         if (connectionParameters.role == LlRx) {
             //wait for frame to arrive
@@ -154,12 +154,12 @@ The two main use cases are sending a file or receiving a file. The flow of these
 
 #
 
-## 5.2 - **llwrite** 
+## 5.2 - ``llwrite`` 
 
-    int llwrite(const unsigned char *buf, int bufSize)
+    int llwrite(const unsigned char `buf, int bufSize)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*llwrite*'s goal is to send information to the receiver in an information frame and, because of this, is exclusively used by the transmitter (no information frame is ever sent by the receiver).<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Initially, it writes to the serial port using a function called *sendIFrame*. This auxiliary function takes the serial port file descriptor (global variable in our link layer code file), the current protocol's sequence number, the file buffer and its filesize and, after building an information frame with these latter 3 parameters, writes it to the file descriptor. This information frame follows the same structure every time: 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`llwrite`'s goal is to send information to the receiver in an information frame and, because of this, is exclusively used by the transmitter (no information frame is ever sent by the receiver).<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Initially, it writes to the serial port using a function called `sendIFrame`. This auxiliary function takes the serial port file descriptor (global variable in our link layer code file), the file buffer and its filesize and the current protocol's sequence number. After building an information frame with these latter 3 parameters, it writes the frame to the file descriptor. This information frame follows the same structure every time: 
 - a starting flag (1 octet), 
 - the address of the information (1 octet),
 - the control field that carries the sequence number (1 octet),
@@ -167,15 +167,15 @@ The two main use cases are sending a file or receiving a file. The flow of these
 - every data byte contained in the information buffer being sent (buffer size octets), 
 - another BCC calculated through an XOR between every data octet being sent, 
 - and an ending flag. 
-To ensure the receiver always understands where the first and last flags are (delimiters of the frame), a byte stuffing mechanism is implemented, and its job is to escape any flag or escape byte contained in the frame by replacing it with two bytes: an escape byte 0x7e followed by a byte calculated through an XOR between the escaped byte and 0x20.
+To ensure the receiver always understands where the first and last flags are (delimiters of the frame), a byte stuffing mechanism is implemented, and its job is to escape any flag or escape byte contained in the frame by replacing it with two bytes: an escape byte 0x7e followed by a byte calculated through an XOR between the escaped byte and 0x20. Obviously, the delimiting flags are not stuffed.
 
 After this, there are 3 major ways in which the program can proceed, depending on the receiver's answer:
-- The transmitter receives a supervision frame with a RR control field within the previously estabilished *ll_connectionParameters.timeout* and the next sequence number. With this, the transmitter knows the reeceiver acknowledged the information frame positively, since it deemed it correct (it contained no header errors, its sequence number is correct and there were no errors in the data portion of the frame). With this, *llwrite* closes successfully and returns the number of bytes were sent (size of the information frame).
+- The transmitter receives a supervision frame with a RR control field within the previously estabilished `ll_connectionParameters.timeout` and the next sequence number. With this, the transmitter knows the reeceiver acknowledged the information frame positively, since it deemed it correct (it contained no header errors, its sequence number is correct and there were no errors in the data portion of the frame). With this, `llwrite` closes successfully and returns the number of bytes were sent (size of the information frame).
 - The transmitter receives a supervision frame with a REJ control field with an unchanged sequence number. This means the information frame sent was not acknowledged correctly and hence needs to be re-sent. The retry number is reset to 0, and the protocol restarts from scratch.
 - The transmitter receives any other type of response, and re-sends the frame, awaiting a correctly acknowledged RR response.
 The retry number is increased, and the protocol restarts.
 
-This back-and-forth is wrapped in a *for* loop that repeats until the number of retries is the same as the previously estabilished *ll_connectionParameters.nRetransmissions*. If this for loop reaches its end condition, the program returns an error number. 
+This back-and-forth is wrapped in a `for` loop that repeats until the number of retries is the same as the previously estabilished `ll_connectionParameters.nRetransmissions`. If this for loop reaches its end condition, the program returns an error number. 
 
     for (int nTries = 0; nTries < ll_connectionParameters.nRetransmissions; nTries++) {
         //printf("Sending Iframe...\n");
@@ -209,10 +209,79 @@ This back-and-forth is wrapped in a *for* loop that repeats until the number of 
 
 #
 
-## 5.3 - **llread**
+## 5.3 - ``llread``
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*llread*'s goal is to read an information frame sent by the transmitter and posteriorly fill the received *packet* parameter with the data contained inside the information frame. It is also the only place where the sequence number is changed depending on the flow of the function.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`llread`'s goal is to read an information frame sent by the transmitter and posteriorly fill the received `packet` parameter with the data contained inside the information frame. It is also the only place where the sequence number is changed depending on the flow of the function.
 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Firstly, it retrieves the data contained in an information frame using a function called `readIFrame`.  This auxiliary function takes the serial port file descriptor (global variable in our link layer code file), the file buffer and its filesize and the current protocol's sequence number. The information frame is parsed inside this function following the same structure as `sendIFrame` uses to construct it, however, to ensure transparency, destuffing the frame after making sure everything was received (reading everything from the serial port from the first flag to the second one) is needed.
+If the frame was received correctly with no errors detected, the return value is the number of size in octets of the data part of the information frame (without the header, delimiting flags and second BCC). If an error was detected, the error numbers range from -1 to -4, and their meanings are as follows:
+- -1 signifies a read timeout
+- -2 signifies an error in the frame's header
+- -3 signifies an out unexpected sequence number
+- -4 signifies an invalid BCC2 and, consequently, an error in the data department
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After this, there are 3 major ways in which the program can continue, depending on the `readIFrame`'s return value:
+- The return value was positive, meaning the frame was received correctly. In this case, `llread` sends an RR control field supervision frame using the next sequence number, changing it in the process, to alert the transmitter that the frame was both received in sequence & acknowledged positively and returns the number of size in octets of the data part of the information frame.
+- The return value was -3, which means the retrieved information frame was a repeated one. `llread` sends an RR control field supervision frame using the current sequence number, leaving it unchanged, to alert the transmitter nothing of significance was done with the repeated frame, and returns the -3 error number.
+- The return value was -4, which means the frame found a problem inside the data. `llread` sends an REJ control field supervision frame with the current sequence number, leaving it unchanged, that alerts the transmitter to re-send the frame with this sequence number.
+
+        //if read successful, change seqNum
+        int bytes;
+
+        //printf("Reading Iframe...\n");
+
+        bytes = readIFrame(fd, packet, seqNum);
+        
+        if (bytes < 0) {
+            switch (bytes) {
+                case -3:
+                    printf("Sending same seqNum acknowledgement SU frame...\n\n");
+                    sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
+                    break;
+                case -4:
+                    printf("Sending rejection SU frame...\n\n");
+                    sendSUFrame(fd, LlTx, CTRL_REJ(seqNum));
+                    break;
+                default: 
+                    break;
+            }
+        }
+        else {
+            seqNum = seqNum ? 0 : 1;
+            //printf("Sending IFrame reception acknowledgement SU frame...\n\n");
+            sendSUFrame(fd, LlTx, CTRL_RR(seqNum));
+        }
+        return bytes;
+
+#
+
+## 5.4 - ``llclose`` 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`llclose` is used after the end of the data transfer and at the end of the program's execution, and its main goal is to make sure the connection closes correctly, using the following protocol:
+- The transmitter sends a DISC (disconnect) frame, and waits for the receiver to send a DISC frame back. After this condition is met, the transmitter sends an UA acknowledgement frame to the receiver. If no DISC frame is received by the transmitter during a set timeout period (parameter defined by `ll_connectionParameters`'s `timeout` value), it retries the protocol, sending a DISC frame and waiting for an DISC frame again. If this does not happen after the number of retries set by the `ll_connectionParameters`'s `nRetransmissions` value, `llclose` ends with an error number, and the program closes.
+    
+        if (ll_connectionParameters.role == LlRx) {
+            while (nTries++ < ll_connectionParameters.nRetransmissions) {
+                sendSUFrame(fd, LlTx, CTRL_DC);
+                if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
+                    sendSUFrame(fd, LlTx, CTRL_UA);
+                    break;
+                }
+            }
+        }
+
+- The receiver waits for a DISC frame to be sent by the transmitter and, after receiving it, sends a DISC frame back, and waits for the transmitter's acknowledgement UA frame.
+
+        if (ll_connectionParameters.role == LlRx) {
+            while (nTries < ll_connectionParameters.nRetransmissions) {
+                if ((msg = readSUFrame(fd, LlTx)) == CTRL_DC) {
+                    sendSUFrame(fd, LlTx, CTRL_DC);
+                    break;
+                }      
+            }
+        }
+
+<br>
 
 # 6. Application protocol
 
