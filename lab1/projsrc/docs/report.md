@@ -94,7 +94,31 @@ Effectively starts and estabilishes the connection between transmitter and recei
 
 # 4. Main Use-Cases
 
-<br>
+The two main use cases are sending a file or receiving a file. The flow of these use cases is as follows:
+
+### Sender
+
+- Runs the program (`main`), which starts the application (`applicationLayer`).
+
+- `llopen` is called, and the connection to the serial port is opened. `sendFile` is called.
+
+- `sendFile` opens the file and sends its general information (not the contents) to the receiver, and then calls `sendFileContents` with the file and its size as the parameters.
+ 
+- `sendFileContents` divides the file data in packets, whose size depends on the user's choice, and sends them sequentially through `llwrite` to the receiver, until it finishes the file or or errors occur, that trigger the timeout more than the number of retries specified. These can be detected thanks to the BCCs, and along with them the header and the start/end flags are also added. The data is also stuffed to prevent misinterpretation of part of it as flags, for example.
+
+- The file is closed, followed by the application in `appLayer_exit`, which calls `llclose`.
+
+### Reader
+
+- Runs the program (`main`), which starts the application (`applicationLayer`).
+
+- `llopen` is called, and the connection to the serial port is opened. `readFile` is called.
+
+- `readFile` reads file information (except the content) and stores it in a struct called `file_info`, and then calls `writeFileContents` with the file to be received as the parameter.
+
+- `writeFileContents` receives the information packets through `llread` which, after being destuffed and checked for errors, have their headers, flags and BCCs removed. Finally, each packet is written to the file sequentially, until every packet is received or errors occur, that trigger the timeout more than the number of retries specified.
+
+- The file is closed, followed by the application in `appLayer_exit`, which calls `llclose`.
 
 # 5. Data Link Protocol
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The data link layer has 4 main functions: *llopen* (used for estabilishing connection at the start of the data transfer), *llwrite* used to send information frames, consequently, *llread* to read information frames and, finally, *llclose* to end the connection.
