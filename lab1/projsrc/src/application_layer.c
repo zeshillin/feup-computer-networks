@@ -14,7 +14,7 @@
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
-int numDataPackets; 
+int numDataPackets = 0; 
 
 extern int fd;
 
@@ -179,6 +179,7 @@ int sendFileContents(FILE *fp, long size) {
     int content_size = MAX_PACKSIZE - 4;
 
     while (file_to_go > 0) {
+        //usleep(5);
         //printf("file to go: %ld\n", file_to_go);
         if (file_to_go < MAX_PACKSIZE - 4) {
             content_size = file_to_go;
@@ -345,9 +346,11 @@ int appLayer_exit() {
     printf("Ending connection with llclose...\n\n");
     if (llclose(0) == 0) {
         printf("Program ended with llclose.\n\n");
+        printf("Number of data packets sent: %i\n", numDataPackets);
         return 0;
     }
     
     printf("Failed to end program with llclose.\n\n");
+    printf("Number of data packets sent: %i\n", numDataPackets);
     exit(-1);
 }

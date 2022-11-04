@@ -432,7 +432,7 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
-int llclose(int showStatistics) //using as fd
+int llclose(int showStatistics) 
 {    
     u_int8_t msg;
 
@@ -453,7 +453,6 @@ int llclose(int showStatistics) //using as fd
                 sendSUFrame(fd, LlTx, CTRL_UA);
                 break;
             }
-        
         }
     }
 
