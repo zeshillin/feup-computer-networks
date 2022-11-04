@@ -79,7 +79,7 @@ int readControlPacket() {
 }
 int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
 
-    int packSize = 1; // make space for control field
+    int packSize = 1; // control field
     // calculate full byte length of packet we'll need to send every TLV
     for (int i = 0; i < tlvNum; i++) 
         packSize += 2 + tlvs[i].L;
@@ -168,7 +168,6 @@ int writeFileContents(FILE *fp) {
     }
 
     printf("Finished file.\n");
-    appLayer_exit();
     return 0;
 }
 
@@ -180,6 +179,7 @@ int sendFileContents(FILE *fp, long size) {
     int content_size = MAX_PACKSIZE - 4;
 
     while (file_to_go > 0) {
+        //printf("file to go: %ld\n", file_to_go);
         if (file_to_go < MAX_PACKSIZE - 4) {
             content_size = file_to_go;
         }
@@ -192,8 +192,7 @@ int sendFileContents(FILE *fp, long size) {
         packet[0] = CF_DATA;
         packet[1] = (unsigned char) ((cur_seqNum++) % 256); 
         packet[2] = (unsigned char) (read_res / 256); 
-        packet[3] = (unsigned char) (read_res % 256);
-        printf("%i\n", cur_seqNum);        
+        packet[3] = (unsigned char) (read_res % 256);       
 
         if ((llwrite(packet, read_res + 4)) < 0) {
             memset(packet, 0, sizeof(packet));
@@ -208,6 +207,7 @@ int sendFileContents(FILE *fp, long size) {
     }
 
     return 0;
+
 }
 
 int readFile() {
@@ -299,7 +299,7 @@ int sendFile(char* path) {
 }
 
 int applicationLayer(const char *serialPort, const char *role, int baudRate,
-                      int nTries, int timeout)
+                      int nTries, int timeout, const char *filename)
 {
     // helper structures declaration
     LinkLayer layer;
@@ -311,15 +311,15 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
     layer.timeout = timeout;
     
     if ((strcmp(role, "tx")) == 0) {
-        printf("Role estabilished: Transmitter\n\n");
+        printf("Role established: Transmitter\n\n");
         layer.role = LlTx;
     } 
     else {
-        printf("Role estabilished: Receiver\n\n");
+        printf("Role established: Receiver\n\n");
         layer.role = LlRx;
     }
 
-    printf("Estabilishing connection with llopen...\n\n");
+    printf("Establishing connection with llopen...\n\n");
     int res = llopen(layer);
     if (res == -1) {
         printf("LLOpen failure: error opening file descriptor.\n\n");
@@ -329,7 +329,7 @@ int applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("LLOpen failure: too many tries.\n\n");
         return -1;
     }
-    printf("Connection estabilished!\n\n");
+    printf("Connection established!\n\n");
 
     cur_seqNum = 0;
 
@@ -345,7 +345,7 @@ int appLayer_exit() {
     printf("Ending connection with llclose...\n\n");
     if (llclose(0) == 0) {
         printf("Program ended with llclose.\n\n");
-        exit(0);
+        return 0;
     }
     
     printf("Failed to end program with llclose.\n\n");

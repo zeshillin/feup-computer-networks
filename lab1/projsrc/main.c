@@ -4,12 +4,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "application_layer.h"
 
 #define BAUDRATE 9600
 #define N_TRIES 3
 #define TIMEOUT 3
+
+clock_t start;
+clock_t end;
 
 // Arguments:
 //   $1: /dev/ttySxx
@@ -46,10 +50,9 @@ int main(int argc, char *argv[])
 
     // data transfer 
     int res;
-
+    start = clock();
     if ((strcmp(role, "rx")) == 0) {
         printf("Receiving file...\n\n");
-
         res = readFile();
         if  (res == 0) {
             printf("File read is empty. \n\n");
@@ -60,7 +63,6 @@ int main(int argc, char *argv[])
     }
     else if ((strcmp(role, "tx")) == 0) {
         printf("Sending file...\n\n");
-        
         res = sendFile(filename);
         if (res == -1) {
             printf("File send error. \n\n");
@@ -71,7 +73,7 @@ int main(int argc, char *argv[])
     }
 
     appLayer_exit();
-    printf("Program ended. \n");
-
+    clock_t end = clock();
+    printf("Time taken: %f\n\n", (double)(end - start) / CLOCKS_PER_SEC);
     return res;
 }
