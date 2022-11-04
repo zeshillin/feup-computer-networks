@@ -79,7 +79,7 @@ int readControlPacket() {
 }
 int sendControlPacket(TLV* tlvs, const int tlvNum, u_int8_t cf) {
 
-    int packSize = 1; // control field
+    int packSize = 1; // make space for control field
     // calculate full byte length of packet we'll need to send every TLV
     for (int i = 0; i < tlvNum; i++) 
         packSize += 2 + tlvs[i].L;
@@ -180,7 +180,6 @@ int sendFileContents(FILE *fp, long size) {
     int content_size = MAX_PACKSIZE - 4;
 
     while (file_to_go > 0) {
-        //printf("file to go: %ld\n", file_to_go);
         if (file_to_go < MAX_PACKSIZE - 4) {
             content_size = file_to_go;
         }
@@ -209,7 +208,6 @@ int sendFileContents(FILE *fp, long size) {
     }
 
     return 0;
-
 }
 
 int readFile() {
@@ -301,7 +299,7 @@ int sendFile(char* path) {
 }
 
 int applicationLayer(const char *serialPort, const char *role, int baudRate,
-                      int nTries, int timeout, const char *filename)
+                      int nTries, int timeout)
 {
     // helper structures declaration
     LinkLayer layer;
