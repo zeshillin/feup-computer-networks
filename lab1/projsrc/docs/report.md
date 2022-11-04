@@ -195,6 +195,7 @@ Reads a supervisory unnumbered frame from the port given by the variable `fd`, g
 
 Reads an information frame to `buf` from the port given by the variable `fd`, of sequence number `seqNum`.
 
+
 <br>
 
 # 4. Main Use-Cases
