@@ -10,7 +10,6 @@
 int parseURL(URL *url, char *input) {
 
     char* URLToken;
-    char* auxInput = strdup(input);
     // compare to check if ftp:// is substring
     
     // parse user info 
@@ -21,33 +20,31 @@ int parseURL(URL *url, char *input) {
     else {
         // get to the start of the name
         for (int i = 0; i < 7; i++)
-            auxInput++;
+            input++;
 
-        if ((URLToken = strtok_r(auxInput, ":", &auxInput)) == NULL) 
+        if ((URLToken = strtok(input, ":")) == NULL) 
             return -1;
         url->user = strdup(URLToken); 
 
-        if ((URLToken = strtok_r(auxInput, "@", &auxInput)) == NULL) 
+        if ((URLToken = strtok(NULL, "@")) == NULL) 
             return -1;
         url->password = strdup(URLToken);
     }
 
-    if ((URLToken = strtok_r(auxInput, "]", &auxInput)) == NULL) 
+    if ((URLToken = strtok(NULL, "]")) == NULL) 
             return -1;
     printf("url token: %s\n", URLToken);
 
     // parse host and path -> NOT WORKING (???)
-    if ((URLToken = strtok_r(auxInput, "/", &auxInput)) == NULL) {
-            printf("url token2: %s\n", URLToken);
+    if ((URLToken = strtok(NULL, "/")) == NULL) 
             return -1; 
-    }
     url->host = strdup(URLToken);
 
-
-    if ((URLToken = strtok_r(auxInput, "\0", &auxInput)) == NULL) {
+    if ((URLToken = strtok(NULL, "\0")) == NULL) 
             return -1; 
-    }
+    
     url->path = strdup(URLToken);
+
 
     return 0;
 }

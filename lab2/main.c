@@ -21,8 +21,8 @@ int main(int argc, char **argv)
     url.path = malloc(MAX_PATH_SIZE);
 
     if (parseURL(&url, argv[1]) != 0) {
-        printf("%s, %s, %s, %s", url.user, url.password, url.host, url.path);
-        //fprintf(stderr, "Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");
+        //printf("%s, %s, %s, %s", url.user, url.password, url.host, url.path);
+        fprintf(stderr, "Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");
         exit(-1);
     }
 
