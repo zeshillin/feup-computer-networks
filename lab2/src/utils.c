@@ -31,7 +31,6 @@ int parseURL(URL *url, char *input) {
         if ((latterToken = strtok(input, "/")) == NULL) 
             return -1; 
         url->host = strdup(latterToken);
-        printf("latter token: %s\n", latterToken);
 
         // get path
         if ((latterToken = strtok(NULL, "\0")) == NULL) 
@@ -56,11 +55,9 @@ int parseURL(URL *url, char *input) {
         // get host
         if ((latterToken = strtok(input, "]")) == NULL) 
             return -1;
-        printf("latter token: %s\n", latterToken);
         if ((latterToken = strtok(NULL, "/")) == NULL) 
             return -1; 
         url->host = strdup(latterToken);
-        printf("latter token: %s\n", latterToken);
 
         // get path
         if ((latterToken = strtok(NULL, "\0")) == NULL) 
