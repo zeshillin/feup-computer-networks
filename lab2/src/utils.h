@@ -31,3 +31,6 @@ URL url;
 int parseURL(URL *url, char *input);
 */
 
+int checkFTP(char* input);
+
+int parseURL(URL *url, char *input);

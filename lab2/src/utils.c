@@ -7,43 +7,67 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+int checkFTP(char* input) {
+
+}
+
 int parseURL(URL *url, char *input) {
 
     char* URLToken;
-    // compare to check if ftp:// is substring
+    char* latterToken;               // these two are here purely for strtok purposes, 
+    char* auxInput = strdup(input);  // strange bug was making host and path string unaccessible
+    
+    // compare to check if ftp:// is substring with checkFTP()
     
     // parse user info 
     if (strstr(input, "@") == NULL) {
         url->user = "anonymous";
         url->password = "anonymous";
+
+        for (int i = 0; i < 6; i++) 
+            input++;
+
+        // get host
+        if ((latterToken = strtok(input, "/")) == NULL) 
+            return -1; 
+        url->host = strdup(latterToken);
+        printf("latter token: %s\n", latterToken);
+
+        // get path
+        if ((latterToken = strtok(NULL, "\0")) == NULL) 
+                return -1; 
+        url->path = strdup(latterToken);
     }
     else {
         // get to the start of the name
         for (int i = 0; i < 7; i++)
-            input++;
+            auxInput++;
 
-        if ((URLToken = strtok(input, ":")) == NULL) 
+        // get name
+        if ((URLToken = strtok(auxInput, ":")) == NULL) 
             return -1;
         url->user = strdup(URLToken); 
 
+        // get password
         if ((URLToken = strtok(NULL, "@")) == NULL) 
             return -1;
         url->password = strdup(URLToken);
-    }
 
-    if ((URLToken = strtok(NULL, "]")) == NULL) 
+        // get host
+        if ((latterToken = strtok(input, "]")) == NULL) 
             return -1;
-    printf("url token: %s\n", URLToken);
-
-    // parse host and path -> NOT WORKING (???)
-    if ((URLToken = strtok(NULL, "/")) == NULL) 
+        printf("latter token: %s\n", latterToken);
+        if ((latterToken = strtok(NULL, "/")) == NULL) 
             return -1; 
-    url->host = strdup(URLToken);
+        url->host = strdup(latterToken);
+        printf("latter token: %s\n", latterToken);
 
-    if ((URLToken = strtok(NULL, "\0")) == NULL) 
-            return -1; 
-    
-    url->path = strdup(URLToken);
+        // get path
+        if ((latterToken = strtok(NULL, "\0")) == NULL) 
+                return -1; 
+        
+        url->path = strdup(latterToken);
+    }
 
 
     return 0;
