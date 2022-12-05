@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SERVER_PORT 6000
+#define SERVER_PORT 21
 
 // test url: ftp://[eu:pass@]H05T/P4TH
 int main(int argc, char **argv)

@@ -8,42 +8,31 @@
 #include <arpa/inet.h>
 
 int checkFTP(char* input) {
-
+    if (strstr(input,"ftp://") != input) {
+        printf("Invalid URL!");
+        return -1;
+    };
+    return 0;
 }
 
 int parseURL(URL *url, char *input) {
 
     char* URLToken;
-    char* latterToken;               // these two are here purely for strtok purposes, 
-    char* auxInput = strdup(input);  // strange bug was making host and path string unaccessible
     
     // compare to check if ftp:// is substring with checkFTP()
+    if (checkFTP(input) == -1) return -1;
+    // parse user info
     
-    // parse user info 
+    for (int i = 0; i < 6; i++) 
+        input++;
     if (strstr(input, "@") == NULL) {
         url->user = "anonymous";
         url->password = "anonymous";
-
-        for (int i = 0; i < 6; i++) 
-            input++;
-
-        // get host
-        if ((latterToken = strtok(input, "/")) == NULL) 
-            return -1; 
-        url->host = strdup(latterToken);
-
-        // get path
-        if ((latterToken = strtok(NULL, "\0")) == NULL) 
-                return -1; 
-        url->path = strdup(latterToken);
+        URLToken = strtok(input, "/");
     }
     else {
-        // get to the start of the name
-        for (int i = 0; i < 7; i++)
-            auxInput++;
-
         // get name
-        if ((URLToken = strtok(auxInput, ":")) == NULL) 
+        if ((URLToken = strtok(input, ":")) == NULL)
             return -1;
         url->user = strdup(URLToken); 
 
@@ -51,21 +40,17 @@ int parseURL(URL *url, char *input) {
         if ((URLToken = strtok(NULL, "@")) == NULL) 
             return -1;
         url->password = strdup(URLToken);
+        // move ahead of the password
+        URLToken = strtok(NULL, "/");
 
-        // get host
-        if ((latterToken = strtok(input, "]")) == NULL) 
-            return -1;
-        if ((latterToken = strtok(NULL, "/")) == NULL) 
-            return -1; 
-        url->host = strdup(latterToken);
-
-        // get path
-        if ((latterToken = strtok(NULL, "\0")) == NULL) 
-                return -1; 
-        
-        url->path = strdup(latterToken);
     }
+    // get host
+    url->host = strdup(URLToken);
 
-
+    // get path
+    if ((URLToken = strtok(NULL, "/")) == NULL)
+        url->path = "";
+    else
+        url->path = strdup(URLToken);
     return 0;
 }
