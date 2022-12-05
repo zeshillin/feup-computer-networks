@@ -1,7 +1,10 @@
 #include "src/utils.c"
+#include "src/socket.c"
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#define SERVER_PORT 6000
 
 // test url: ftp://[eu:pass@]H05T/P4TH
 int main(int argc, char **argv)
@@ -31,8 +34,14 @@ int main(int argc, char **argv)
         herror("gethostbyname()");
         exit(-1);
     }
+    char *address = inet_ntoa(*((struct in_addr *) h->h_addr);
 
     printf("Host name  : %s\n", h->h_name);
-    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
+    printf("IP Address : %s\n", address);
 
+    int socket = openSocket(SERVER_PORT, address);
+    if (socket < 0) {
+        printf("Socket creation failed.\n");
+        return -1;
+    }
 }
