@@ -29,12 +29,13 @@ int main(int argc, char **argv)
     }
     printf("%s, %s, %s, %s", url.user, url.password, url.host, url.path);
 
+    // take care of
     struct hostent *h;
     if ((h = gethostbyname(argv[1])) == NULL) {
         herror("gethostbyname()");
         exit(-1);
     }
-    char *address = inet_ntoa(*((struct in_addr *) h->h_addr);
+    char *address = inet_ntoa(*((struct in_addr *) h->h_addr));
 
     printf("Host name  : %s\n", h->h_name);
     printf("IP Address : %s\n", address);
