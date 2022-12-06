@@ -12,31 +12,27 @@
 #define SERVER_PORT 21
 
 // reply misc
-#define MAX_REPLY_SIZE 1024
+#define MAX_REPLY_SIZE 2048
 #define MULTI_LINE_FLAG '-'
 #define LAST_LINE_FLAG ' '
+
+URL url;
 
 int readReply(int socket, char* code) {
 
     char reply_size = 0;
     char ch;
-    char line_code[3];
+    char reply_code[4] = {'\0'};
+    char line_code[4] = {'\0'};
 
     int line_idx = 0;
     bool multi_line = false;
     bool last_line = false;
 
-    if (read(socket, &code, 3) < 0) {
+    if (read(socket, &reply_code, 3) < 0) {
         printf("Error reading reply.\n");
         return -1;
     } 
-
-    /* for (int i = 0; i < 3; i++) {
-        if (read(socket, code + i, 1) < 0) {
-            printf("Error reading reply.\n");
-            return -1;
-        } 
-    } */
     
     if (read(socket, &ch, 1) < 0) {
         printf("Error reading reply.\n");
@@ -59,8 +55,7 @@ int readReply(int socket, char* code) {
                 return -1;
             }
 
-        } while (ch != EOF);
-
+        } while (ch != '\n');
     }
     else {
 
@@ -78,27 +73,33 @@ int readReply(int socket, char* code) {
                 return -1;
             }
 
-            if (line_idx < 3) {
-                line_code[line_idx] = ch;
-            }
-            else if (line_idx == 3)
-                last_line = (ch == LAST_LINE_FLAG) && (strcmp(line_code, code) == 0);
-            
-            line_idx++;
-
             if (ch == '\n') {
+                if (last_line) {
+                    break;
+                }
                 line_idx = 0;
                 continue;
             }
 
+            if (line_idx < 3) {
+                line_code[line_idx] = ch;
+            }
+            else if (line_idx == 3) {
+                last_line = (ch == LAST_LINE_FLAG) && (strcmp(line_code, reply_code) == 0);
+            } 
+            
+            line_idx++;
+
         } while (ch != EOF);
 
-    } 
     
-    if (!last_line) {
-        printf("\nReply structure unknown, exiting...\n");
-        return -1;
-    }
+        if (!last_line) {
+            printf("\nReply structure unknown, exiting...\n");
+            return -1;
+        }
+    } 
+
+    code = strdup(reply_code);
 
     return 0;
 }
@@ -112,12 +113,59 @@ int startConnection(char* address) {
         return -1;
     }
 
+    printf("\n Connection estabilished!\n\n");
+
     // get reply from server
     char reply_code[3];
     if (readReply(socket, reply_code) < 0) {
         return -1;
     };
 
-    return 0;
+    return socket;
+}
+
+int setupDownload(const int socket) {
+
+    // send user
+    char* user = malloc(strlen(url.user) + 6);
+    strcat(user, "user ");
+    strcat(user, url.user);
+    strcat(user, "\n");
+    if (sendCommand(socket, user) < 0) {
+        printf("User sending failed.\n");
+        return -1;
+    }
+
+    char reply_code[3];
+    if (readReply(socket, reply_code) < 0) 
+        return -1;
+
+    // send pass
+    char* pass = malloc(strlen(url.password) + 6);
+    strcat(pass, "pass ");
+    strcat(pass, url.password);
+    strcat(pass, "\n");
+    if (sendCommand(socket, pass) < 0) {
+        printf("Password sending failed.\n");
+        return -1;
+    }
+
+    if (readReply(socket, reply_code) < 0) 
+        return -1;
     
+    // set pasv
+    char* pasv = "pasv\n";
+    if (sendCommand(socket, pasv) < 0) {
+        printf("Passive mode command sending failed.\n");
+        return -1;
+    }
+
+    if (readReply(socket, reply_code) < 0) 
+        return -1;
+    
+    
+
+
+    return 0;
+
 }

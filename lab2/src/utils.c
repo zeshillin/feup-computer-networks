@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdbool.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -47,10 +47,26 @@ int parseURL(URL *url, char *input) {
     // get host
     url->host = strdup(URLToken);
 
+    char* latterToken;
+    char* dupPath;
+    bool found = false;
+
     // get path
-    if ((URLToken = strtok(NULL, "/")) == NULL)
+    if ((URLToken = strtok(NULL, "\0")) == NULL)
         url->path = "";
-    else
-        url->path = strdup(URLToken);
+    else {
+        strcpy(url->path, URLToken);
+        dupPath = strdup(URLToken);
+
+        // get filename
+        URLToken = strtok(dupPath, "/");
+        while (!found) {
+            latterToken = strdup(URLToken);
+            URLToken = strtok(NULL, "/"); 
+            found = (URLToken == NULL);
+        }
+        url->filename = strdup(latterToken);
+    }
+
     return 0;
 }

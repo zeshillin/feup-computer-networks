@@ -5,7 +5,10 @@
 #include "src/utils.c"
 #include "src/connection.c"
 
-// test url: ftp://[eu:pass@]H05T/P4TH
+extern URL url;
+
+// test url: ftp://[eu:pass@]H05T/P4TH/name.txt
+// timestamp.txt -> ftp://ftp.up.pt/pub/kodi/timestamp.txt
 
 int main(int argc, char **argv)
 {
@@ -16,7 +19,6 @@ int main(int argc, char **argv)
     }
 
     // setup URL data structure
-    URL url;
     url.path = malloc(MAX_USER_SIZE);
     url.password = malloc(MAX_PASS_SIZE);
     url.host = malloc(MAX_HOST_SIZE);
@@ -26,11 +28,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");
         exit(-1);
     }
-    printf("%s, %s, %s, %s", url.user, url.password, url.host, url.path);
+    printf(" User: %s\n Password:%s\n Host:%s\n Path:%s\n Filename:%s\n\n\n", url.user, url.password, url.host, url.path, url.filename);
 
     // take care of host   
     struct hostent *h;
-    if ((h = gethostbyname(argv[1])) == NULL) {
+    if ((h = gethostbyname(url.host)) == NULL) {
         herror("gethostbyname()");
         exit(-1);
     }
@@ -38,9 +40,17 @@ int main(int argc, char **argv)
     printf("Host name  : %s\n", h->h_name);
     printf("IP Address : %s\n", address);
 
+    int socket = startConnection(address);
     // estabilish connection
-    if (startConnection(address) < 0) {
+    if (socket < 0) {
         printf("Error estabilishing connection.\n");
+        return -1;
+    }
+
+    // enter passive mode and open new socket
+    int downloadSocket = setupDownload(socket);
+    if (downloadSocket < 0) {
+        printf("Error sending command.\n");
         return -1;
     }
 

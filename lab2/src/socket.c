@@ -33,3 +33,28 @@ int openSocket(const int port, char *address) {
 
     return sockfd;
 }
+
+int sendCommand(const int socket, char* cmd) {
+    int bytes;
+
+    /*send a string to the server*/
+    bytes = write(socket, cmd, strlen(cmd));
+    if (bytes > 0)
+        printf("Bytes sent in command: %i\n", bytes);
+    else {
+        perror("write()");
+        return -1;
+    }
+
+    return 0;
+}
+
+int closeSocket(int socket) {
+
+    if (close(socket) < 0) {
+        perror("close()");
+        return -1;
+    }
+
+    return 0;
+}

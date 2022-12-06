@@ -11,6 +11,7 @@ typedef struct {
     char *password;
     char *host; 
     char *path;
+    char *filename;
 } URL;
 
 URL url;
