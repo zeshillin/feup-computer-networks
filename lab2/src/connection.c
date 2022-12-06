@@ -16,7 +16,7 @@
 #define MULTI_LINE_FLAG '-'
 #define LAST_LINE_FLAG ' '
 
-int readReply(int socket, char *code) {
+int readReply(int socket, char* code) {
 
     char reply_size = 0;
     char ch;
@@ -30,6 +30,13 @@ int readReply(int socket, char *code) {
         printf("Error reading reply.\n");
         return -1;
     } 
+
+    /* for (int i = 0; i < 3; i++) {
+        if (read(socket, code + i, 1) < 0) {
+            printf("Error reading reply.\n");
+            return -1;
+        } 
+    } */
     
     if (read(socket, &ch, 1) < 0) {
         printf("Error reading reply.\n");
@@ -57,7 +64,7 @@ int readReply(int socket, char *code) {
     }
     else {
 
-        // read every line until
+        // read every line until last line
         do {
             if (read(socket, &ch, 1) < 0) {
                 printf("Error reading reply.\n");
@@ -71,11 +78,6 @@ int readReply(int socket, char *code) {
                 return -1;
             }
 
-            if (ch == '\n') {
-                line_idx = 0;
-                continue;
-            }
-
             if (line_idx < 3) {
                 line_code[line_idx] = ch;
             }
@@ -83,6 +85,11 @@ int readReply(int socket, char *code) {
                 last_line = (ch == LAST_LINE_FLAG) && (strcmp(line_code, code) == 0);
             
             line_idx++;
+
+            if (ch == '\n') {
+                line_idx = 0;
+                continue;
+            }
 
         } while (ch != EOF);
 
