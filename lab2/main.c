@@ -48,11 +48,26 @@ int main(int argc, char **argv)
     }
 
     // enter passive mode and open new socket
-    int downloadSocket = setupDownload(socket);
+    int downloadSocket = setupDownload(socket, address);
     if (downloadSocket < 0) {
-        printf("Error sending command.\n");
+        printf("Error setting up download.\n");
         return -1;
     }
+
+    printf("Download setup complete. Starting download...\n\n");
+
+    // download the file
+    if (download(socket, downloadSocket, url.path, url.filename) < 0) {
+        printf("Error downloading file.\n");
+        return -1;
+    }
+
+    if (closeConnection(socket, downloadSocket) < 0) {
+        printf("Error closing connection.\n");
+        return -1;
+    }
+
+    printf("Connection closed correctly.\n\n");
 
     return 0;
 }
