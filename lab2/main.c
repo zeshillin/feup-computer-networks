@@ -9,6 +9,7 @@ extern URL url;
 
 // test url: ftp://[eu:pass@]H05T/P4TH/name.txt
 // timestamp.txt -> ftp://ftp.up.pt/pub/kodi/timestamp.txt
+// crab rave mp4 (BIG FILE for testing) -> ftp://rcom:rcom@netlab1.fe.up.pt/files/crab.mp4
 
 int main(int argc, char **argv)
 {
