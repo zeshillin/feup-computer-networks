@@ -327,5 +327,11 @@ int closeConnection(int socket, int downloadSocket) {
         return -1;
     } 
 
+    free(url.filename);
+    free(url.user);
+    free(url.password);
+    free(url.host);
+    free(url.path);
+    
     return 0; 
 }   
