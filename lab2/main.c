@@ -26,10 +26,10 @@ int main(int argc, char **argv)
     url.path = malloc(MAX_PATH_SIZE);
 
     if (parseURL(&url, argv[1]) != 0) {
-        fprintf(stderr, "Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");
+        fprintf(stderr, "[SYS] Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");
         exit(-1);
     }
-    printf(" User: %s\n Password:%s\n Host:%s\n Path:%s\n Filename:%s\n\n\n", url.user, url.password, url.host, url.path, url.filename);
+    printf("[SYS] User: %s\n Password:%s\n Host:%s\n Path:%s\n Filename:%s\n\n\n", url.user, url.password, url.host, url.path, url.filename);
 
     // take care of host   
     struct hostent *h;
@@ -44,31 +44,31 @@ int main(int argc, char **argv)
     int socket = startConnection(address);
     // estabilish connection
     if (socket < 0) {
-        printf("Error estabilishing connection.\n");
+        printf("[SYS] Error estabilishing connection.\n");
         return -1;
     }
 
     // enter passive mode and open new socket
     int downloadSocket = setupDownload(socket, address);
     if (downloadSocket < 0) {
-        printf("Error setting up download.\n");
+        printf("[SYS] Error setting up download.\n");
         return -1;
     }
 
-    printf("Download setup complete. Starting download...\n\n");
+    printf("[SYS] Login successful and passive data transmisison mode engaged.\n[SYS] Connection to new download port ascertained.\n[SYS] Requesting file...\n\n");
 
     // download the file
     if (download(socket, downloadSocket, url.path, url.filename) < 0) {
-        printf("Error downloading file.\n");
+        printf("[SYS] Error downloading file.\n");
         return -1;
     }
 
     if (closeConnection(socket, downloadSocket) < 0) {
-        printf("Error closing connection.\n");
+        printf("[SYS] Error closing connection.\n");
         return -1;
     }
 
-    printf("Connection closed correctly.\n\n");
+    printf("[SYS] Connection closed correctly.\n\n");
 
     return 0;
 }

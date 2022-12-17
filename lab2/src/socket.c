@@ -20,14 +20,14 @@ int openSocket(const int port, char *address) {
 
     /*open a TCP socket*/
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket opening failed. \n");
+        perror("[SYS] Socket opening failed. \n");
         return -1;
     }
     /*connect to the server*/
     if (connect(sockfd,
                 (struct sockaddr *) &server_addr,
                 sizeof(server_addr)) < 0) {
-        perror("Connecting to socket failed. \n");
+        perror("[SYS] Connecting to socket failed. \n");
         return -1;
     }
 
@@ -39,9 +39,7 @@ int sendCommand(const int socket, char* cmd) {
 
     /*send a string to the server*/
     bytes = write(socket, cmd, strlen(cmd));
-    if (bytes > 0)
-        printf("Bytes sent in command: %i\n", bytes);
-    else {
+    if (bytes < 0) {
         perror("write()");
         return -1;
     }

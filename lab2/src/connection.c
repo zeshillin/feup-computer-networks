@@ -33,9 +33,10 @@ int readReply(int socket, char* code) {
     bool multi_line = false;
     bool last_line = false;
 
+    // printf("[REPLY]\n\n");
     for (int i = 0; i < 3; i++) {
         if (read(socket, &reply_code[i], 1) < 0) {
-            printf("Error reading reply.\n");
+            printf("[SYS] Error reading reply.\n");
             return -1;
         } 
         code[i] = reply_code[i];
@@ -43,7 +44,7 @@ int readReply(int socket, char* code) {
     }
     
     if (read(socket, &ch, 1) < 0) {
-        printf("Error reading reply.\n");
+        printf("[SYS] Error reading reply.\n");
         return -1;
     } 
     printf("%c", ch);
@@ -54,14 +55,14 @@ int readReply(int socket, char* code) {
 
         do {
             if (read(socket, &ch, 1) < 0) {
-                printf("Error reading reply.\n");
+                printf("[SYS] Error reading reply.\n");
                 return -1;
             } 
             printf("%c", ch);
 
             reply_size++;
             if (reply_size > MAX_REPLY_SIZE) {
-                printf("Reply was too big.\n");
+                printf("[SYS] Reply was too big.\n");
                 return -1;
             }
 
@@ -72,14 +73,14 @@ int readReply(int socket, char* code) {
         // read every line until last line
         do {
             if (read(socket, &ch, 1) < 0) {
-                printf("Error reading reply.\n");
+                printf("[SYS] Error reading reply.\n");
                 return -1;
             } 
             printf("%c", ch);
 
             reply_size++;
             if (reply_size > MAX_REPLY_SIZE) {
-                printf("Reply was too big.\n");
+                printf("[SYS] Reply was too big.\n");
                 return -1;
             }
 
@@ -104,10 +105,11 @@ int readReply(int socket, char* code) {
 
     
         if (!last_line) {
-            printf("\nReply structure unknown, exiting...\n");
+            printf("\n[SYS] Reply structure unknown, exiting...\n");
             return -1;
         }
     } 
+    /* printf("\n[REPLY]\n"); */
 
     return 0;
 }
@@ -120,9 +122,10 @@ int readPortReply(int socket) {
     char ch;
     char* numToken;
 
+   /*  printf("[REPLY]\n\n"); */
     do {
         if (read(socket, &ch, 1) < 0) {
-            printf("Error reading reply.\n");
+            printf("[SYS] Error reading reply.\n");
             return -1;
         } 
         printf("%c", ch);
@@ -131,47 +134,58 @@ int readPortReply(int socket) {
         i++;            
 
     } while (ch != '\n');
+    /* printf("\n[REPLY]\n"); */
 
     // skip IP address
     if ((numToken = strtok(reply_text, "(")) == NULL) {
-        printf("Reply structure unknown.\n");
+        printf("[SYS] Reply structure unknown.\n");
         return -1;
     }
     for (int i = 0; i < 4; i++) {
         if ((numToken = strtok(NULL, ",")) == NULL) {
-            printf("Reply structure unknown.\n");
+            printf("[SYS] Reply structure unknown.\n");
             return -1;
         }
     }
     // calculate new port 
     if ((numToken = strtok(NULL, ",")) == NULL) {
-        printf("Reply structure unknown.\n");
+        printf("[SYS] Reply structure unknown.\n");
         return -1;
     }
     int port = atoi(numToken)*256;
-    printf("\nP1: %s\n", numToken);
+    printf("\n[SYS] P1: %s\n", numToken);
 
     if ((numToken = strtok(NULL, ")")) == NULL) {
-        printf("Reply structure unknown.\n");
+        printf("[SYS] Reply structure unknown.\n");
         return -1;
     }
     port += atoi(numToken);
-    printf("P2: %s\n", numToken);
+    printf("[SYS] P2: %s\n", numToken);
 
-    printf("New port: P1*256 + P2 = %i\n\n", port);
+    printf("[SYS] New port: P1*256 + P2 = %i\n\n", port);
 
     return port;
 }
 
 int readSizeReply(int socket) {
     
+    char reply_code[4] = { '\0'};
     char reply_text[MAX_REPLY_SIZE];
     int i = 0;
 
     char ch;    
+    /* printf("[REPLY]\n\n"); */
+    for (int i = 0; i < 3; i++) {
+        if (read(socket, &reply_code[i], 1) < 0) {
+            printf("[SYS] Error reading reply.\n");
+            return -1;
+        } 
+        printf("%c", reply_code[i]);
+    }
+
     do {
         if (read(socket, &ch, 1) < 0) {
-            printf("Error reading reply.\n");
+            printf("[SYS] Error reading reply.\n");
             return -1;
         } 
         printf("%c", ch);
@@ -180,14 +194,20 @@ int readSizeReply(int socket) {
         i++;
 
     } while (ch != '\n');
+    /* printf("\n[REPLY]\n"); */
+
+    if (strcmp(reply_code, "150") != 0) {
+        printf("[SYS] Couldn't open requested file.\n");
+        return -1;
+    }
 
     char* sizeToken; 
     if ((sizeToken = strtok(reply_text, "(")) == NULL) {
-        printf("Reply structure unknown.\n");
+        printf("[SYS] Reply structure unknown.\n");
         return -1;
     }
     if ((sizeToken = strtok(NULL, " ")) == NULL) {
-        printf("Reply structure unknown.\n");
+        printf("[SYS] Reply structure unknown.\n");
         return -1;
     }
 
@@ -200,11 +220,11 @@ int startConnection(char* address) {
     // estabilish connection with socket
     int socket = openSocket(SERVER_PORT, address);
     if (socket < 0) {
-        printf("Socket creation failed.\n");
+        printf("[SYS] Socket creation failed.\n");
         return -1;
     }
 
-    printf("\n Connection estabilished!\n\n");
+    printf("\n[SYS] Connection estabilished!\n\n");
 
     // get reply from server
     char reply_code[4] = {'\0'};
@@ -217,14 +237,15 @@ int startConnection(char* address) {
 
 // returns download socket
 int setupDownload(const int socket, char* address) {
-
+    
     // send user
     char* user = malloc(strlen(url.user) + 6);
     strcat(user, "user ");
     strcat(user, url.user);
     strcat(user, "\n");
+    printf("\n[COMMAND] %s\n", user);
     if (sendCommand(socket, user) < 0) {
-        printf("User sending failed.\n");
+        printf("[SYS] User sending failed.\n");
         return -1;
     }
 
@@ -237,8 +258,14 @@ int setupDownload(const int socket, char* address) {
     strcat(pass, "pass ");
     strcat(pass, url.password);
     strcat(pass, "\n");
+    printf("\n[COMMAND] %s\n", pass);
     if (sendCommand(socket, pass) < 0) {
-        printf("Password sending failed.\n");
+        printf("[SYS] Password sending failed.\n");
+        return -1;
+    }
+
+    if (strcmp(reply_code, "230") != 0) {
+        printf("[SYS] Login unsuccessful.\n");
         return -1;
     }
 
@@ -248,8 +275,9 @@ int setupDownload(const int socket, char* address) {
     // set pasv
     char* pasv = malloc(5);
     strcat(pasv, "pasv\n");
+     printf("\n[COMMAND] %s\n", pasv);
     if (sendCommand(socket, pasv) < 0) {
-        printf("Passive mode command sending failed.\n");
+        printf("[SYS] Passive mode command sending failed.\n");
         return -1;
     }
 
@@ -259,7 +287,7 @@ int setupDownload(const int socket, char* address) {
     
     int downloadSocket = openSocket(port, address);
     if (downloadSocket < 0) {
-        printf("Error opening new download socket.\n");
+        printf("[SYS] Error opening new download socket.\n");
         return -1;
     }
 
@@ -272,8 +300,9 @@ int download(int socket, int downloadSocket, char* path, char* filename) {
     strcat(retr, "retr ");
     strcat(retr, path);
     strcat(retr, "\n");
+     printf("[COMMAND] %s\n", retr);
     if (sendCommand(socket, retr) < 0) {
-        printf("Retr command sending failed.\n");
+        printf("[SYS] Retr command sending failed.\n");
         return -1;
     }
 
@@ -290,16 +319,17 @@ int download(int socket, int downloadSocket, char* path, char* filename) {
     do {
         bytes = read(downloadSocket, &buf, MAX_PACKET_SIZE);
         if (bytes < 0) {
-            printf("Error downloading file.\n");
+            printf("[SYS] Error downloading file.\n");
             return -1;
         }
 
         fwrite(buf, bytes, 1, f);
         read_bytes += bytes;
 
-        printf("%i/%i\n\n", read_bytes, filesize);
+        printf("\n[SYS] Download Progress: %i/%i\n", read_bytes, filesize);
     } while (read_bytes < filesize);
 
+    printf("\n");
     if (fclose(f) < 0)
         return -1;
 
@@ -313,17 +343,17 @@ int closeConnection(int socket, int downloadSocket) {
         return -1;
 
     if (closeSocket(socket) < 0) {
-        printf("Couldn't end socket connection correctly.\n\n");
+        printf("[SYS] Couldn't end socket connection correctly.\n\n");
         return -1;
     } 
 
     if (closeSocket(downloadSocket) < 0) {
-        printf("Couldn't end socket connection correctly.\n\n");
+        printf("[SYS] Couldn't end socket connection correctly.\n\n");
         return -1;
     }
 
     if (strcmp(reply_code, "226") != 0) {
-        printf("Transfer completion message not acknowledged.\n\n");
+        printf("[SYS] Transfer completion message not acknowledged.\n\n");
         return -1;
     } 
 
