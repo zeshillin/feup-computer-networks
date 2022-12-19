@@ -264,13 +264,13 @@ int setupDownload(const int socket, char* address) {
         return -1;
     }
 
+    if (readReply(socket, reply_code) < 0) 
+        return -1;
+
     if (strcmp(reply_code, "230") != 0) {
         printf("[SYS] Login unsuccessful.\n");
         return -1;
     }
-
-    if (readReply(socket, reply_code) < 0) 
-        return -1;
     
     // set pasv
     char* pasv = malloc(5);
