@@ -20,10 +20,11 @@ int main(int argc, char **argv)
     }
 
     // setup URL data structure
-    url.path = malloc(MAX_USER_SIZE);
+    url.user = malloc(MAX_USER_SIZE);
     url.password = malloc(MAX_PASS_SIZE);
     url.host = malloc(MAX_HOST_SIZE);
     url.path = malloc(MAX_PATH_SIZE);
+    url.filename = malloc(MAX_PATH_SIZE);
 
     if (parseURL(&url, argv[1]) != 0) {
         fprintf(stderr, "[SYS] Input: download ftp://[<user>:<password>@]<host>/<url-path>\n");

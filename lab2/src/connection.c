@@ -357,9 +357,12 @@ int closeConnection(int socket, int downloadSocket) {
         return -1;
     } 
 
+
     free(url.filename);
-    free(url.user);
-    free(url.password);
+    if (strcmp(url.user, "anonymous") != 0) { 
+        free(url.user);
+        free(url.password);
+    }
     free(url.host);
     free(url.path);
     
